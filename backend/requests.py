@@ -8,6 +8,7 @@ from google.analytics.data_v1beta.types import RunReportRequest, DateRange, Metr
 
 load_dotenv()
 
+# Getting env variables
 client_id = os.environ.get("GOOGLE_CLIENT_ID")
 client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
 
