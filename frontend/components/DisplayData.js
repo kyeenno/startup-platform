@@ -7,6 +7,7 @@ export default function DisplayData() {
     useEffect(() => {
         const fetchData = async () => {
             try {
+                // Fetch data from the backend API
                 const response = await fetch('http://localhost:8000/');
 
                 if (!response.ok) {
