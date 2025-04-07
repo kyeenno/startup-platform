@@ -15,3 +15,6 @@ __pycache__/
 # Logs or temp files
 *.log
 *.tmp
+
+# Token json
+token.json
