@@ -11,6 +11,7 @@ load_dotenv()
 client_id = os.environ.get("GOOGLE_CLIENT_ID")
 client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
 
+# Defining required credentials
 def create_creds():
     flow = InstalledAppFlow.from_client_config(
         {
