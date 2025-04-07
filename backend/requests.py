@@ -7,10 +7,12 @@ from google.analytics.data_v1beta.types import RunReportRequest, DateRange, Metr
 
 load_dotenv()
 
+# Getting env variable
 client_id = os.environ.get("GOOGLE_CLIENT_ID")
 client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
 property_id = os.environ.get("GOOGLE_PROPERTY_ID")
 
+# Defining client creentials
 def create_creds():
     flow = InstalledAppFlow.from_client_config(
         {
@@ -32,7 +34,7 @@ def create_creds():
 
 client = create_creds()
 
-#query
+# API query
 request = RunReportRequest(
     property=f"properties/{property_id}",
     dimensions=[Dimension(name="date")],
@@ -42,7 +44,7 @@ request = RunReportRequest(
 
 response = client.run_report(request)
 
-#print
+# Console print
 for row in response.rows:
     date = row.dimension_values[0].value
     sessions = row.metric_values[0].value
