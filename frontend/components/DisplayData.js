@@ -27,7 +27,7 @@ export default function DisplayData() {
     }, []);
 
     return (
-        <div>
+        <div className="text-white">
             <h1 className="mt-8 text-3xl text-green">Formatted message</h1>
             <div>
                 { data ? (
@@ -35,7 +35,7 @@ export default function DisplayData() {
                 ) : 'Loading...' }
             </div>
             <h1 className="mt-8 text-3xl">Raw JSON</h1>
-            <div className='text-red-50'>
+            <div>
                 { data ? (
                     <p>{JSON.stringify(data)}</p>
                 ) : 'Loading...' }
