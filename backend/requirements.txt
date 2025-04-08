@@ -35,3 +35,8 @@ typing-inspection==0.4.0
 typing_extensions==4.13.1
 urllib3==2.3.0
 uvicorn==0.34.0
+
+# Supabase/SQL packages
+sqlalchemy
+psycopg2-binary
+python-dotenv
