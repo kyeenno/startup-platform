@@ -37,6 +37,6 @@ urllib3==2.3.0
 uvicorn==0.34.0
 
 # Supabase/SQL packages
-sqlalchemy
+sqlalchemy # needed if using SQLAlchemy
 psycopg2-binary
 python-dotenv
