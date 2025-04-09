@@ -2,6 +2,7 @@ import os
 import json
 from dotenv import load_dotenv
 from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
 from google.analytics.data_v1beta.types import RunReportRequest, DateRange, Metric, Dimension
@@ -29,7 +30,7 @@ def create_creds():
     # If no valid creds, do the OAuth flow
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            creds.refresh()  # auto-refresh if token expired
+            creds.refresh(Request())  # auto-refresh if token expired
         else:
             flow = InstalledAppFlow.from_client_config(
                 {
