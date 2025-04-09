@@ -1,0 +1,5 @@
+google-auth>=2.0.0
+python-jose>=3.0.0
+rsa>=4.0.0
+pyasn1>=0.4.0
+pyasn1_modules>=0.2.0
