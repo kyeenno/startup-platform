@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
  
 export default function DisplayData() {
     const [data, setData] = useState(null);
-    // const [err, setErr] = useState({});
 
     useEffect(() => {
         const fetchData = async () => {
