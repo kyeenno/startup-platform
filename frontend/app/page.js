@@ -1,4 +1,4 @@
-import DisplayData from "../components/DisplayData";
+import DisplayData from "../components/dashboard/DisplayData";
 
 export default function Home() {
   return (
