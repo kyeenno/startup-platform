@@ -1,12 +1,7 @@
-import DisplayData from "../components/DisplayData";
+import HomePage from "@/components/ui/HomePage";
 
 export default function Home() {
   return (
-    <div>
-      <h1 className="text-center mt-8 text-5xl text-white">Google Analytics API testing</h1>
-      <div>
-        <DisplayData />
-      </div>
-    </div>
+    <HomePage />
   );
 }
