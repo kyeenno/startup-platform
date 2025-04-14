@@ -1,6 +1,12 @@
 from fastapi import Request, HTTPException, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from auth import verify_token # function from auth.py
+from supabase import create_client
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Create the FastAPI app
 app = FastAPI()
