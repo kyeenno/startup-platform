@@ -11,6 +11,11 @@ load_dotenv()
 # Create the FastAPI app
 app = FastAPI()
 
+# Loading Supabase connection to retrieve data
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
 # Allow frontend/mobile access
 app.add_middleware(
     CORSMiddleware,
@@ -23,31 +28,24 @@ app.add_middleware(
 @app.get("/api/summary")
 async def get_summary(request: Request): # function that handles request
     auth_header = request.headers.get("authorization") # extracting Authorization header
-    if not auth_header or not auth_header.startswith("Dearer "):
+    if not auth_header or not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid token")
+    
     token = auth_header.split(" ")[1] # Bearer <token> <- to take just token part
 
     try:
         payload = verify_token(token) # verifying token using function from auth.py
         user_id = payload.get("sub") # Supabase UID
-        email = payload.get("email")
         
-        # Test print
-        print("Authenticated user:", user_id, email)
+        # data retrieving
+        response = supabase.table("test_table").select("message").rq("UID", user_id).single().execute()
+        
+        if response.error:
+            raise HTTPException(status_code=404, detail="Message not found")
 
         # Return to frontend
-        return {
-            "sessions": 123,
-            "total_users": 456,
-            "user_id": user_id,
-            "email": email
-        }
+        return response.data
     
     except Exception as e: # if token is invalid raise error
         raise HTTPException(status_code=403, detail=f"Invalid token: {e}")
 
-
-# test
-@app.get("/")
-def read_root():
-    return {"message": "Hello from FastAPI!"}
