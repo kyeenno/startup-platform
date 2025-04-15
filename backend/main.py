@@ -24,6 +24,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# test
+@app.get("/")
+def read_root():
+    return {"message": "Hello from FastAPI!"}
 
 @app.get("/api/summary")
 async def get_summary(request: Request): # function that handles request
