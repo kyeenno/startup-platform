@@ -10,7 +10,7 @@ const SignUp = () => {
     const router = useRouter();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [success, setSuccess] = useState(true);
+    const [success, setSuccess] = useState(false);
     const [err, setErr] = useState({});
 
     // Submit form
