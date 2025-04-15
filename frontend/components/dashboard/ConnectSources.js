@@ -1,10 +1,11 @@
 "use client";
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { useAuth } from "@/contexts/AuthContext";
+import Link from "next/link";
 import Image from "next/image";
 
 export default function ConnectSources() {
-    const [user, setUser] = useState(null);
+    const { user, loading: authLoading } = useAuth();
     const [sources, setSources] = useState({
         google_analytics: false,
         stripe: false,
@@ -12,39 +13,43 @@ export default function ConnectSources() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const getUser = async () => {
-            const { data } = await supabase.auth.getSession();
-            if (data?.session?.user) {
-                setUser(data.session.user);
-                fetchSources(data.session.user.id);
-            }
-
+        if (user) {
+            fetchSources(user.id);
             setLoading(false);
-        };
-        getUser();
-    }, []);
+        } else if (!authLoading) {
+            setLoading(false);
+        }
+    }, [user, authLoading]);
 
     const fetchSources = async (userId) => {
-        const response = await fetch(`http://localhost:8000/api/user/connected-sources?userId=${userId}`);
-        if (response.ok) {
-            const data = await response.json();
-            setSources(data.source);
+        try {
+            const response = await fetch(`http://localhost:8000/api/user/connected-sources?userId=${userId}`);
+            if (response.ok) {
+                const data = await response.json();
+                setSources(data.source);
+            }
+        } catch (err) {
+            console.error("Error fetching srces:", err);
         }
     };
 
     const connectGA = () => {
-        window.location.href = `http://localhost:8000/api/connect/google-analytics?userId=${user.id}`;
+        if (user) {
+            window.location.href = `http://localhost:8000/api/connect/google-analytics?userId=${user.id}`;
+        }
     };
 
     const connectStripe = () => {
-        window.location.href = `http://localhost:8000/api/connect/stripe?userId=${user.id}`;
+        if (user) {
+            window.location.href = `http://localhost:8000/api/connect/stripe?userId=${user.id}`;
+        }
     };
 
     // Validate if the user is logged in
-    // if (!loading) return <p>Loading...</p>;
-    // if (!user) return (
-    //     <p>Please <Link href="/auth/signin" className="hover:underline">sign in</Link> to connect data sources.</p>
-    // );
+    if (authLoading || loading) return <p>Loading...</p>;
+    if (!user) return (
+        <p>Please <Link href="/auth/signin" className="hover:underline">sign in</Link> to connect data sources.</p>
+    );
 
     return (
         <div className="p-6 max-w-2xl mx-auto text-center">
