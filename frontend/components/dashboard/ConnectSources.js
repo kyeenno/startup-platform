@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import Link from "next/link";
 import Image from "next/image";
 
 export default function ConnectSources() {
@@ -41,6 +40,7 @@ export default function ConnectSources() {
         window.location.href = `http://localhost:8000/api/connect/stripe?userId=${user.id}`;
     };
 
+    // Validate if the user is logged in
     // if (!loading) return <p>Loading...</p>;
     // if (!user) return (
     //     <p>Please <Link href="/auth/signin" className="hover:underline">sign in</Link> to connect data sources.</p>
@@ -87,7 +87,7 @@ export default function ConnectSources() {
                     </div>
 
                     <button
-                        onClick={connectGA}
+                        onClick={connectStripe}
                         className="mt-auto w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded transition-colors"
                     >
                         {sources.google_analytics ? 'Reconnect' : 'Connect'} Google Analytics
