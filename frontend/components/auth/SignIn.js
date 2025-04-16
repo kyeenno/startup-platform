@@ -22,7 +22,7 @@ const SignIn = () => {
             if (error) throw error;
 
             // Redirect to the data source connection page
-            router.push('/connect');
+                router.push('/connect');
 
         } catch (err) {
             console.error("Sign in error", err);
