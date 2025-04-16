@@ -63,6 +63,7 @@ storage3==0.11.3
 StrEnum==0.4.15
 supabase==2.15.0
 supafunc==0.9.4
+stripe==12.0.0
 typing-inspection==0.4.0
 typing_extensions==4.13.1
 urllib3==2.3.0
