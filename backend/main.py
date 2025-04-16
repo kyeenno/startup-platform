@@ -40,16 +40,26 @@ async def get_summary(request: Request): # function that handles request
     try:
         payload = verify_token(token) # verifying token using function from auth.py
         user_id = payload.get("sub") # Supabase UID
-        
-        # data retrieving
-        response = supabase.table("test_table").select("message").rq("UID", user_id).single().execute()
-        
-        if response.error:
+        print("User ID from token:", user_id)  # Debugging
+
+        try:
+            print("📡 Querying Supabase...") # Debugging
+            # data retrieving
+            response = supabase.table("test_table").select("message").eq("user_id", user_id).single().execute()
+            print("Supabase query response:", response)  # Debugging
+        except Exception as db_error: # Debugging
+            print("❌ Supabase query crashed:", db_error)
+            raise HTTPException(status_code=500, detail="Supabase query failed")
+    
+        if response.error or not response.data:
+            print("❌ No data returned from Supabase.")  # Debugging
             raise HTTPException(status_code=404, detail="Message not found")
 
         # Return to frontend
         return response.data
     
-    except Exception as e: # if token is invalid raise error
-        raise HTTPException(status_code=403, detail=f"Invalid token: {e}")
-
+    except ValueError:  # Handle invalid token
+        raise HTTPException(status_code=403, detail="Invalid or expired token")
+    except Exception as e:  # Handle other exceptions
+        print("Internal server error:", e)  # Debugging
+        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
