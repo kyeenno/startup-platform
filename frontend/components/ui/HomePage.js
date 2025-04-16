@@ -13,6 +13,8 @@ export default function HomePage() {
         <br />
         <Link href="/dashboard" className="hover:underline">Go to Dashboard</Link>
         <br />
+        <Link href="/connect" className="hover:underline">Go to Connect Sources</Link>
+        <br />
       </div>
     </div>
   );

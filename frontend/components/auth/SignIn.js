@@ -9,25 +9,25 @@ const SignIn = () => {
     const router = useRouter();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
     const [err, setErr] = useState({});
 
     const submit = async (e) => {
         e.preventDefault();
         setErr({});
+        setLoading(true);
 
         try {
             const { data, error } = await supabase.auth.signInWithPassword({ email, password });
             if (error) throw error;
 
-            // Clear form fields
-            setEmail('');
-            setPassword('');
-
-            // Redirect to the dashboard
-            router.push('/dashboard');
+            // Redirect to the data source connection page
+                router.push('/connect');
 
         } catch (err) {
+            console.error("Sign in error", err);
             setErr({ form: err.message });
+            setLoading(false);
         }
     };
 
