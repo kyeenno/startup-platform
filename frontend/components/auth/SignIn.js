@@ -37,7 +37,7 @@ const SignIn = () => {
             <form className="w-sm mx-auto flex flex-col justify-center" onSubmit={submit}>
                 <div>
                     <div className="mb-5">
-                        <label htmlFor="email" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Your email</label>
+                        <label htmlFor="email" className="block mb-2 text-sm font-medium text-white">Your email</label>
                         <InputForm
                             type="email"
                             id="email"
@@ -48,7 +48,7 @@ const SignIn = () => {
                         />
                     </div>
                     <div className="mb-5">
-                        <label htmlFor="password" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Your password</label>
+                        <label htmlFor="password" className="block mb-2 text-sm font-medium text-white">Your password</label>
                         <InputForm
                             type="password"
                             id="password"

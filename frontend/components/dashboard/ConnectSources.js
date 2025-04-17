@@ -53,7 +53,7 @@ export default function ConnectSources() {
 
     return (
         <div className="p-6 max-w-2xl mx-auto text-center">
-            <h2 className="text-2xl font-bold text-white mb-6">Connect Your Data Sources</h2>
+            <h2 className="text-2xl font-bold text-white mb-6">Connect Data Sources</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Google Analytics Card */}
                     <div className="bg-gray-700 p-4 rounded-lg flex flex-col h-full">
@@ -73,7 +73,7 @@ export default function ConnectSources() {
                         onClick={connectGA}
                         className="mt-auto w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded transition-colors"
                     >
-                        {sources.google_analytics ? 'Reconnect' : 'Connect'} Google Analytics
+                        {sources.google_analytics ? 'Reconnect' : 'Connect'}
                     </button>
                 </div>
 
@@ -95,7 +95,7 @@ export default function ConnectSources() {
                         onClick={connectStripe}
                         className="mt-auto w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded transition-colors"
                     >
-                        {sources.google_analytics ? 'Reconnect' : 'Connect'} Google Analytics
+                        {sources.google_analytics ? 'Reconnect' : 'Connect'}
                     </button>
                 </div>
             </div>

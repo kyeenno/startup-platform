@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export default function HomePage() {
   return (
-    <div className="m-8 gap-2">
+    <div className="m-8 gap-2 text-white">
       <h1 className="text-center mt-8 text-5xl text-white">Routes</h1>
       <p className="mb-8">{`This is the default "/" route.`}</p>
       <div>
