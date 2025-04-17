@@ -4,6 +4,7 @@ from auth import verify_token # function from auth.py
 from supabase import create_client
 import os
 from dotenv import load_dotenv
+from fastapi.responses import JSONResponse
 
 # Load environment variables
 load_dotenv()
@@ -30,7 +31,7 @@ def read_root():
     return {"message": "Hello from FastAPI!"}
 
 @app.get("/api/summary")
-async def get_summary(request: Request): # function that handles request
+async def get_summary(request: Request): # function that handles request    
     auth_header = request.headers.get("authorization") # extracting Authorization header
     if not auth_header or not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid token")
@@ -40,23 +41,18 @@ async def get_summary(request: Request): # function that handles request
     try:
         payload = verify_token(token) # verifying token using function from auth.py
         user_id = payload.get("sub") # Supabase UID
-        print("User ID from token:", user_id)  # Debugging
 
-        try:
-            print("📡 Querying Supabase...") # Debugging
-            # data retrieving
-            response = supabase.table("test_table").select("message").eq("user_id", user_id).single().execute()
-            print("Supabase query response:", response)  # Debugging
-        except Exception as db_error: # Debugging
-            print("❌ Supabase query crashed:", db_error)
-            raise HTTPException(status_code=500, detail="Supabase query failed")
-    
-        if response.error or not response.data:
-            print("❌ No data returned from Supabase.")  # Debugging
+        # data retrieving
+        query = supabase.table("test_table").select("message").eq("user_id", user_id).limit(1)
+        response = query.execute()
+
+        data_list = response.data
+        if not data_list or len(data_list) == 0:
             raise HTTPException(status_code=404, detail="Message not found")
 
         # Return to frontend
-        return response.data
+        message = data_list[0]
+        return JSONResponse(content=message)
     
     except ValueError:  # Handle invalid token
         raise HTTPException(status_code=403, detail="Invalid or expired token")
