@@ -43,7 +43,9 @@ async def get_summary(request: Request): # function that handles request
         user_id = payload.get("sub") # Supabase UID
 
         # data retrieving
-        query = supabase.table("test_table").select("message").eq("user_id", user_id).limit(1)
+        query = supabase.table("ga_data") \
+            .select("name, value, date_collected") \
+            .eq("user_id", user_id)
         response = query.execute()
 
         data_list = response.data
@@ -51,11 +53,9 @@ async def get_summary(request: Request): # function that handles request
             raise HTTPException(status_code=404, detail="Message not found")
 
         # Return to frontend
-        message = data_list[0]
-        return JSONResponse(content=message)
+        return JSONResponse(content=data_list)
     
     except ValueError:  # Handle invalid token
         raise HTTPException(status_code=403, detail="Invalid or expired token")
     except Exception as e:  # Handle other exceptions
-        print("Internal server error:", e)  # Debugging
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
