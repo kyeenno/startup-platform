@@ -1,20 +1,60 @@
 "use client";
+import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function HomePage() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  // Optional auto-redirect to dashboard if already logged in
+  useEffect(() => {
+    if (user) {
+      router.push("/dashboard");
+    }
+  }, [user, router]);
+
   return (
-    <div className="m-8 gap-2 text-white">
-      <h1 className="text-center mt-8 text-5xl text-white">Routes</h1>
-      <p className="mb-8">{`This is the default "/" route.`}</p>
-      <div>
-        <Link href="/auth/signup" className="hover:underline">Go to Sign Up page</Link>
-        <br />
-        <Link href="/auth/signin" className="hover:underline">Go to Sign In page</Link>
-        <br />
-        <Link href="/dashboard" className="hover:underline">Go to Dashboard</Link>
-        <br />
-        <Link href="/connect" className="hover:underline">Go to Connect Sources</Link>
-        <br />
+    <div className="min-h-screen bg-[#131615] text-white flex justify-center items-center">
+      <div className="mx-auto px-4 py-16">
+        <div className="max-w-4xl mx-auto text-center">
+          <h1 className="text-5xl font-bold mb-8">Welcome to Datlee</h1>
+          
+          <p className="text-xl mb-12">
+            Smart notifications that alert you about important changes in your business data.
+            Customize frequency and specificity to focus on what matters.
+          </p>
+          
+            <div className="space-x-4">
+              {loading ? (
+                <div className="animate-pulse">Loading...</div>
+              ) : user ? (
+                <Link 
+                  href="/connect" 
+                  className="bg-[#63ace5] hover:bg-[#4b86b4] text-white px-8 py-3 rounded-lg font-medium transition-colors"
+                >
+                  Go to Dashboard
+                </Link>
+              ) : (
+                <>
+                  <Link 
+                    href="/auth/signin" 
+                    className="bg-[#2563EB] hover:bg-[#2563EB] text-white px-8 py-3 rounded-lg transition-colors"
+                  >
+                    Sign In
+                  </Link>
+                  
+                  <Link 
+                    href="/auth/signup" 
+                    className="border border-white hover:bg-white hover:text-[#2563EB] px-8 py-3 rounded-lg transition-colors"
+                  >
+                    Create Account
+                  </Link>
+                </>
+              )}
+            </div>
+        </div>
       </div>
     </div>
   );
