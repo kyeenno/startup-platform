@@ -21,6 +21,12 @@ const SignUp = () => {
         setErr({});
 
         try {
+
+            if (!email || !password || !name || !surname) {
+                setErr({ form: "All fields are required" });
+                return;
+            }
+
             const { data, error } = await supabase.auth.signUp({
                 email,
                 password,
@@ -31,6 +37,7 @@ const SignUp = () => {
                     }
                 }
             });
+
             if (error) throw error;
 
             // Store data in the Supabase table
@@ -38,10 +45,9 @@ const SignUp = () => {
                 const { error: profileError } = await supabase
                     .from('user_info')
                     .insert({
-                        user_id: data.user_id,
+                        user_id: data.user.id,
                         user_name: name,
                         user_surname: surname,
-                        email: email
                     });
 
                 if (profileError) throw profileError;
@@ -60,6 +66,7 @@ const SignUp = () => {
             router.push('/dashboard');
 
         } catch (err) {
+            console.error("Error", err);
             setErr({ form: err.message });
         }
     };
@@ -72,7 +79,7 @@ const SignUp = () => {
             <form className="w-sm mx-auto flex flex-col justify-center" onSubmit={submit}>
                 <div>
                     <div className="mb-5">
-                        <label htmlFor="name" className="block mb-2 text-sm font-medium text-white">Your email</label>
+                        <label htmlFor="name" className="block mb-2 text-sm font-medium text-white">First Name</label>
                         <InputForm
                             type="text"
                             id="name"
@@ -83,7 +90,7 @@ const SignUp = () => {
                         />
                     </div>
                     <div className="mb-5">
-                        <label htmlFor="surname" className="block mb-2 text-sm font-medium text-white">Your email</label>
+                        <label htmlFor="surname" className="block mb-2 text-sm font-medium text-white">Last Name</label>
                         <InputForm
                             type="text"
                             id="surname"
@@ -94,7 +101,7 @@ const SignUp = () => {
                         />
                     </div>
                     <div className="mb-5">
-                        <label htmlFor="email" className="block mb-2 text-sm font-medium text-white">Your email</label>
+                        <label htmlFor="email" className="block mb-2 text-sm font-medium text-white">Email</label>
                         <InputForm
                             type="email"
                             id="email"
@@ -105,7 +112,7 @@ const SignUp = () => {
                         />
                     </div>
                     <div className="mb-5">
-                        <label htmlFor="password" className="block mb-2 text-sm font-medium text-white">Your password</label>
+                        <label htmlFor="password" className="block mb-2 text-sm font-medium text-white">Password</label>
                         <InputForm
                             type="password"
                             id="password"
@@ -114,13 +121,18 @@ const SignUp = () => {
                             required
                         />
                     </div>
-                    <div className="flex items-start mb-5">
+                    <div className="flex items-start">
                         <p className="text-gray-400">
                             Existing user? <Link href="/auth/signin" className="hover:underline hover:text-gray-300 transition duration-150 ease-in-out">Sign in instead.</Link>
                         </p>
                     </div>
                 </div>
-                <button type="submit" className="transition duration-150 ease-in-out cursor-pointer text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm w-full sm:w-auto px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Create</button>
+                {err.form && (
+                    <div className="py-2 text-red-500">
+                        {err.form}
+                    </div>
+                )}
+                <button type="submit" className="mt-5 transition duration-150 ease-in-out cursor-pointer text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm w-full sm:w-auto px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Create</button>
             </form>
         </div>
     );
