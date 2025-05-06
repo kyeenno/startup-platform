@@ -1,9 +1,9 @@
 'use client';
 import Link from "next/link";
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from '../../../lib/supabaseClient';
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import InputForm from "../ui/InputForm";
+import InputForm from "../../ui/InputForm";
 
 const SignIn = () => {
     const router = useRouter();
@@ -22,7 +22,7 @@ const SignIn = () => {
             if (error) throw error;
 
             // Redirect to the data source connection page
-                router.push('/connect');
+                router.push('/profile/dashboard');
 
         } catch (err) {
             console.error("Sign in error", err);

@@ -1,10 +1,10 @@
 'use client';
 import Link from "next/link";
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from '../../../lib/supabaseClient';
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import InputForm from "../ui/InputForm";
-import Success from "./messages/Success";
+import InputForm from "../../ui/InputForm";
+import Success from "../messages/Success";
 
 const SignUp = () => {
     const router = useRouter();

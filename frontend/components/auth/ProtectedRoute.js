@@ -1,6 +1,6 @@
 'use client';
 import { useEffect } from "react";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function ProtectedRoute({ children }) {
@@ -9,7 +9,7 @@ export default function ProtectedRoute({ children }) {
 
     useEffect(() => {
         if (!loading && !user) {
-            router.push("/auth/login");
+            router.push("/auth/signin");
         }
     }, [user, loading, router]);
 

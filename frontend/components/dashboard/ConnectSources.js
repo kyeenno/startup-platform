@@ -11,6 +11,7 @@ export default function ConnectSources() {
         stripe: false,
     });
     const [loading, setLoading] = useState(true);
+    const [connected, setConnected] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -56,7 +57,7 @@ export default function ConnectSources() {
             <h2 className="text-2xl font-bold text-white mb-6">Connect Data Sources</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Google Analytics Card */}
-                    <div className="bg-gray-700 p-4 rounded-lg flex flex-col h-full">
+                    <div className="p-4 rounded-lg flex flex-col h-full border border-white/30 rounded-lg">
                         <div className="flex-grow">
                             <div className="flex items-center justify-center mb-4">
                                 <Image 
@@ -71,14 +72,14 @@ export default function ConnectSources() {
 
                     <button
                         onClick={connectGA}
-                        className="mt-auto w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded transition-colors"
+                        className="mt-auto w-full bg-[#2563EB] hover:bg-blue-700 text-white py-2 px-4 rounded transition-colors"
                     >
                         {sources.google_analytics ? 'Reconnect' : 'Connect'}
                     </button>
                 </div>
 
                 {/* Stripe Card */}
-                <div className="bg-gray-700 p-4 rounded-lg flex flex-col h-full">
+                <div className="border border-white/30 rounded-lg p-4 rounded-lg flex flex-col h-full">
                     <div className="flex-grow">
                         <div className="flex items-center justify-center mb-4">
                             <Image 
@@ -93,7 +94,7 @@ export default function ConnectSources() {
 
                     <button
                         onClick={connectStripe}
-                        className="mt-auto w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded transition-colors"
+                        className="mt-auto w-full bg-[#2563EB] hover:bg-blue-700 text-white py-2 px-4 rounded transition-colors"
                     >
                         {sources.google_analytics ? 'Reconnect' : 'Connect'}
                     </button>

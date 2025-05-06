@@ -11,7 +11,7 @@ export default function HomePage() {
   // Optional auto-redirect to dashboard if already logged in
   useEffect(() => {
     if (user) {
-      router.push("/dashboard");
+      router.push("/profile/dashboard");
     }
   }, [user, router]);
 
@@ -31,7 +31,7 @@ export default function HomePage() {
                 <div className="animate-pulse">Loading...</div>
               ) : user ? (
                 <Link 
-                  href="/connect" 
+                  href="/profile/dashboard" 
                   className="bg-[#63ace5] hover:bg-[#4b86b4] text-white px-8 py-3 rounded-lg font-medium transition-colors"
                 >
                   Go to Dashboard
