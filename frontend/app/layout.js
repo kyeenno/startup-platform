@@ -1,10 +1,8 @@
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Navbar from "@/components/ui/Navbar";
 import { AuthProvider } from "@/contexts/AuthContext";
 
 const inter = Inter({
-  variable: "--font-inter",
   subsets: ["latin"],
 });
 
@@ -20,7 +18,6 @@ export default function RootLayout({ children }) {
         className={`${inter.variable} antialiased`}
       >
         <AuthProvider>
-          <Navbar />
           <main>{children}</main>
         </AuthProvider>
       </body>
