@@ -1,10 +1,11 @@
-from fastapi import Request, HTTPException, FastAPI
+from fastapi import Request, HTTPException, FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from auth import verify_token # function from auth.py
 from supabase import create_client
 import os
 from dotenv import load_dotenv
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel  # For request validation
 
 # Load environment variables
 load_dotenv()
@@ -25,24 +26,29 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# test
+# Test Route
 @app.get("/")
 def read_root():
     return {"message": "Hello from FastAPI!"}
 
-@app.get("/api/summary")
-async def get_summary(request: Request): # function that handles request    
-    auth_header = request.headers.get("authorization") # extracting Authorization header
+# Token validation 
+async def get_current_user_id(request: Request):
+    auth_header = request.headers.get("authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid token")
     
-    token = auth_header.split(" ")[1] # Bearer <token> <- to take just token part
+    token = auth_header.split(" ")[1]  # Bearer <token> <- to take just token part
+    payload = verify_token(token)  # verifying token using function from auth.py
+    user_id = payload.get("sub")  # Supabase UID
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    return user_id
 
+# Data access route after user login
+@app.get("/api/summary")
+async def get_summary(user_id: str = Depends(get_current_user_id)): # function that handles request
     try:
-        payload = verify_token(token) # verifying token using function from auth.py
-        user_id = payload.get("sub") # Supabase UID
-
-        # data retrieving
+        # Data retrieving
         query = supabase.table("ga_data") \
             .select("name, value, date_collected") \
             .eq("user_id", user_id)
@@ -54,8 +60,35 @@ async def get_summary(request: Request): # function that handles request
 
         # Return to frontend
         return JSONResponse(content=data_list)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")    
+
+# Structure of the data of the incoming request
+class NotificationPreferences(BaseModel):
+    frequency: str
+    trafficEnabled: bool
+    sessionDurationEnabled: bool
+
+# Notification preference update
+@app.put("/api/notification-preferences")
+async def update_notification_preferences(
+    preferences: NotificationPreferences,
+    user_id: str = Depends(get_current_user_id)
+):
+    try:
+        # Insert or update the data in the Supabase table
+        response = supabase.table("notification_preference").upsert({
+            "user_id": user_id,
+            "frequency": preferences.frequency,
+            "traffic_enabled": preferences.trafficEnabled,
+            "session_duration_enabled": preferences.sessionDurationEnabled
+        }).execute()
+
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail="Failed to update preferences")
+        
+        return {"message": "Notification preferences updated successfully"}
     
-    except ValueError:  # Handle invalid token
-        raise HTTPException(status_code=403, detail="Invalid or expired token")
-    except Exception as e:  # Handle other exceptions
+    except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
