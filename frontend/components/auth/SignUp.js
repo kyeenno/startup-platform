@@ -10,6 +10,8 @@ const SignUp = () => {
     const router = useRouter();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [name, setName] = useState('');
+    const [surname, setSurname] = useState('');
     const [success, setSuccess] = useState(false);
     const [err, setErr] = useState({});
 
@@ -19,8 +21,31 @@ const SignUp = () => {
         setErr({});
 
         try {
-            const { data, error } = await supabase.auth.signUp({ email, password });
+            const { data, error } = await supabase.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: {
+                        first_name: name,
+                        last_name: surname
+                    }
+                }
+            });
             if (error) throw error;
+
+            // Store data in the Supabase table
+            if (data?.user) {
+                const { error: profileError } = await supabase
+                    .from('user_info')
+                    .insert({
+                        user_id: data.user_id,
+                        user_name: name,
+                        user_surname: surname,
+                        email: email
+                    });
+
+                if (profileError) throw profileError;
+            }
 
             // Set status if authenticated succesfully
             setSuccess(true);
@@ -28,6 +53,8 @@ const SignUp = () => {
             // Clear form fields
             setEmail('');
             setPassword('');
+            setName('');
+            setSurname('');
 
             // Redirect to the dashboard
             router.push('/dashboard');
@@ -40,10 +67,32 @@ const SignUp = () => {
     return success ? (
         <Success />
     ) : (
-        <div className="m-8 text-white">
+        <div>
             <h1 className="text-center mb-8 text-xl text-white">Create an account</h1>
             <form className="w-sm mx-auto flex flex-col justify-center" onSubmit={submit}>
                 <div>
+                    <div className="mb-5">
+                        <label htmlFor="name" className="block mb-2 text-sm font-medium text-white">Your email</label>
+                        <InputForm
+                            type="text"
+                            id="name"
+                            placeholder="John"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            required
+                        />
+                    </div>
+                    <div className="mb-5">
+                        <label htmlFor="surname" className="block mb-2 text-sm font-medium text-white">Your email</label>
+                        <InputForm
+                            type="text"
+                            id="surname"
+                            placeholder="Doe"
+                            value={surname}
+                            onChange={(e) => setSurname(e.target.value)}
+                            required
+                        />
+                    </div>
                     <div className="mb-5">
                         <label htmlFor="email" className="block mb-2 text-sm font-medium text-white">Your email</label>
                         <InputForm

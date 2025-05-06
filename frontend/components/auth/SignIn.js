@@ -32,7 +32,7 @@ const SignIn = () => {
     };
 
     return (
-        <div className="m-8">
+        <div>
             <h1 className="text-center mb-8 text-xl text-white">Log in as an existing user</h1>
             <form className="w-sm mx-auto flex flex-col justify-center" onSubmit={submit}>
                 <div>
