@@ -27,7 +27,7 @@ export default function DisplayData() {
     }, []);
 
     return (
-        <div className="text-white">
+        <div className="m-4 px-4 text-white">
             <h1 className="mt-8 text-3xl text-green">Formatted message</h1>
             <div>
                 { data ? (
