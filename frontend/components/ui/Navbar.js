@@ -35,8 +35,8 @@ export default function Navbar() {
                             <li className="hover:underline transition duration-150 ease-in-out cursor-pointer">
                                 <Link href="/profile/connect">Connect Data</Link>
                             </li>
-                            <li className="hover:underline transition duration-150 ease-in-out cursor-pointer">
-                                <button onClick={handleLogout}>Log out</button>
+                            <li>
+                                <button className="hover:underline transition duration-150 ease-in-out cursor-pointer" onClick={handleLogout}>Log out</button>
                             </li>
                         </>
                     ) : (
