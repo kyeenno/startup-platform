@@ -6,45 +6,69 @@ import Image from "next/image";
 
 export default function ConnectSources() {
     const { user, loading: authLoading } = useAuth();
-    const [sources, setSources] = useState({
-        google_analytics: false,
-        stripe: false,
-    });
+    // const [sources, setSources] = useState({
+    //     google_analytics: false,
+    //     stripe: false,
+    // });
     const [loading, setLoading] = useState(true);
-    const [connected, setConnected] = useState(false);
+    // const [connected, setConnected] = useState(false);
 
     useEffect(() => {
         if (user) {
-            fetchSources(user.id);
+            // fetchSources(user.id);
             setLoading(false);
         } else if (!authLoading) {
             setLoading(false);
         }
     }, [user, authLoading]);
 
-    const fetchSources = async (userId) => {
-        try {
-            const response = await fetch(`http://localhost:8000/api/user/connected-sources?userId=${userId}`);
-            if (response.ok) {
-                const data = await response.json();
-                setSources(data.source);
-            }
-        } catch (err) {
-            console.error("Error fetching srces:", err);
-        }
-    };
+    // const fetchSources = async (userId) => {
+    //     try {
+    //         const response = await fetch(`http://localhost:8000/api/user/connected-sources?userId=${userId}`);
+    //         if (response.ok) {
+    //             const data = await response.json();
+    //             setSources(data.source);
 
-    const connectGA = () => {
-        if (user) {
-            window.location.href = `http://localhost:8000/api/connect/google-analytics?userId=${user.id}`;
-        }
-    };
+    //             // Check if any sources are connected
+    //             const connectedSources = Object.values(data.source).some(val => val === true);
+    //             setConnected(connectedSources);
+    //         }
+    //     } catch (err) {
+    //         console.error("Error fetching srces:", err);
+    //     }
+    // };
 
-    const connectStripe = () => {
-        if (user) {
-            window.location.href = `http://localhost:8000/api/connect/stripe?userId=${user.id}`;
-        }
-    };
+    // const connectGA = () => {
+    //     if (user) {
+    //         window.location.href = `http://localhost:8000/api/connect/google-analytics?userId=${user.id}`;
+    //     }
+    // };
+
+    // const connectStripe = () => {
+    //     if (user) {
+    //         window.location.href = `http://localhost:8000/api/connect/stripe?userId=${user.id}`;
+    //     }
+    // };
+
+    // Check connection status after user has been redirected back to Connect Sources page
+    // useEffect(() => {
+    //     // Set URL params
+    //     const urlParams = new URLSearchParams(window.location.search);
+    //     const status = urlParams.get('status');
+    //     const source = urlParams.get('source');
+
+    //     if (status === 'success' && source) {
+    //         // Update source state if connected
+    //         setSources(prev => ({
+    //             ...prev,
+    //             [source]: true
+    //         }));
+    //         setConnected(true);
+
+    //         // Remove params
+    //         window.history.replaceState({}, document.title, window.location.pathname);
+    //     }
+    // }, []);
 
     // Validate if the user is logged in
     if (authLoading || loading) return <p>Loading...</p>;
@@ -66,15 +90,15 @@ export default function ConnectSources() {
                                     src="/ga-icon-white.png"
                                     alt="Google Analytics logo"
                                 />
-                            <div className={`rounded-full w-3 h-3 ${sources.google_analytics ? 'bg-green-500' : 'bg-red-500'}`}></div>
                         </div>
                     </div>
 
                     <button
-                        onClick={connectGA}
+                        // onClick={connectGA}
                         className="mt-auto w-full bg-[#2563EB] hover:bg-blue-700 text-white py-2 px-4 rounded transition-colors"
                     >
-                        {sources.google_analytics ? 'Reconnect' : 'Connect'}
+                        {/* {sources.google_analytics ? 'Reconnect' : 'Connect'} */}
+                        Connect
                     </button>
                 </div>
 
@@ -88,15 +112,15 @@ export default function ConnectSources() {
                                 src="/stripe-icon-purple.svg"
                                 alt="Google Analytics logo"
                             />
-                        <div className={`rounded-full w-3 h-3 ${sources.google_analytics ? 'bg-green-500' : 'bg-red-500'}`}></div>
                         </div>
                     </div>
 
                     <button
-                        onClick={connectStripe}
+                        // onClick={connectStripe}
                         className="mt-auto w-full bg-[#2563EB] hover:bg-blue-700 text-white py-2 px-4 rounded transition-colors"
                     >
-                        {sources.google_analytics ? 'Reconnect' : 'Connect'}
+                        {/* {sources.stripe ? 'Reconnect' : 'Connect'} */}
+                        Connect
                     </button>
                 </div>
             </div>
