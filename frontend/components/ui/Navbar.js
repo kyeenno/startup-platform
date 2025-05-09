@@ -145,9 +145,6 @@ export default function Navbar() {
                                 </div>
                             )}
                         </li>
-                        <li className="hover:text-gray-300 transition duration-150 ease-in-out cursor-pointer">
-                            <Link href="/profile/plan">My Plan</Link>
-                        </li>
                         <li>
                             <button className="border border-white bg-white h-3/4 px-4 py-1 rounded-lg hover:bg-black hover:text-white transition duration-150 ease-in-out cursor-pointer text-black" onClick={handleLogout}>Log out</button>
                         </li>
