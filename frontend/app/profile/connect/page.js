@@ -1,4 +1,4 @@
-import ConnectSources from "@/components/dashboard/ConnectSources";
+import ConnectSources from "@/components/profile/connect/ConnectSources";
 
 export default function ConnectPage() {
   return (
