@@ -1,4 +1,4 @@
-import ConnectSources from "../dashboard/ConnectSources";
+import ConnectSources from "../profile/connect/ConnectSources";
 import ProtectedRoute from "./ProtectedRoute";
 
 export default function ConnectPage() {
