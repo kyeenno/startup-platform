@@ -63,7 +63,7 @@ const SignUp = () => {
             setSurname('');
 
             // Redirect to the dashboard
-            router.push('/dashboard');
+            router.push('/profile/dashboard');
 
         } catch (err) {
             console.error("Error", err);
