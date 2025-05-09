@@ -64,6 +64,28 @@ async def get_summary(user_id: str = Depends(get_current_user_id)): # function t
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")    
 
+# Notification preference retrieval if user has one already
+@app.get("/api/notification-preferences")
+async def get_notification_preferences(user_id: str = Depends(get_current_user_id)):
+    try:
+        response = supabase.table("notification_preference") \
+            .select("frequency, traffic, session_duration") \
+            .eq("user_id", user_id) \
+            .single() \
+            .execute()
+
+        if response.data:
+            return {
+                "frequency": response.data.get("frequency"),
+                "traffic_enabled": response.data.get("traffic"),
+                "session_duration_enabled": response.data.get("session_duration"),
+            }
+        else:
+            raise HTTPException(status_code=404, detail="Preferences not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
+
+
 # Structure of the data of the incoming request
 class NotificationPreferences(BaseModel):
     frequency: str
@@ -81,13 +103,16 @@ async def update_notification_preferences(
         response = supabase.table("notification_preference").upsert({
             "user_id": user_id,
             "frequency": preferences.frequency,
-            "traffic_enabled": preferences.trafficEnabled,
-            "session_duration_enabled": preferences.sessionDurationEnabled
-        }).execute()
+            "traffic": preferences.trafficEnabled,
+            "session_duration": preferences.sessionDurationEnabled
+        }, on_conflict=["user_id"]).execute()
 
-        if response.status_code != 200:
-            raise HTTPException(status_code=500, detail="Failed to update preferences")
-        
+        # Debugging: Print the Supabase response
+        print("Supabase response:", response)
+
+        if 'error' in response and response['error'] is not None:
+            raise HTTPException(status_code=500, detail="Failed to update preferences: " + str(response['error']))
+
         return {"message": "Notification preferences updated successfully"}
     
     except Exception as e:
