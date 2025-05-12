@@ -18,7 +18,7 @@ def verify_token(token: str):
             algorithms=["HS256"],
             options={"verify_aud": False}
         )
-        print("✅ Token verified:", payload)
+        print("✅ Token verified!")
         return payload  # This contains user info like 'sub', 'email', etc.
     
     except Exception as e:

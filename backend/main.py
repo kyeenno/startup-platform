@@ -6,6 +6,8 @@ import os
 from dotenv import load_dotenv
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel  # For request validation
+from google_analytics.connect import router as ga_router
+#from stripe_data.connect import router as stripe_connect_router
 
 # Load environment variables
 load_dotenv()
@@ -92,3 +94,9 @@ async def update_notification_preferences(
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
+
+#mount google analytics routes under /google
+app.include_router(ga_router, prefix="/google")
+
+#mount stripe routes under /stripe
+#app.include_router(stripe_connect_router, prefix="/stripe")
