@@ -70,3 +70,5 @@ urllib3==2.3.0
 uvicorn==0.34.0
 websockets==14.2
 yarl==1.19.0
+google-api-python-client==2.100.0
+cryptography==41.0.5
