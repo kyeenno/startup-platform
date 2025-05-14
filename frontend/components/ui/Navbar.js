@@ -85,20 +85,19 @@ export default function Navbar() {
     };
 
     return (
-        <div className="text-white px-4 py-2 mx-4 mt-4">
+        <div className="border border-gray-300 bg-white rounded-lg p-2 mx-4 mt-4">
             <ul className="flex justify-between items-center px-6 py-3 gap-6">
                 {loading ? (
                     <li>Loading...</li>
                 ) : user ? (
                     <>
-                    {/* Links for logged in users */}
-                        <li className="mr-auto hover:text-gray-300 transition duration-150 ease-in-out cursor-pointer">
+                        <li className="mr-auto hover:text-[#2563EB] transition duration-150 ease-in-out cursor-pointer">
                             <Link href="/profile/dashboard">Home</Link>
                         </li>
                         <li className="ml-auto cursor-pointer relative" ref={listRef}>
                             <button
                                 onClick={() => setListOpen(!listOpen)}
-                                className="flex items-center gap-1 hover:text-gray-300 transition duration-150 ease-in-out cursor-pointer"
+                                className="flex items-center gap-1 hover:text-[#2563EB] transition duration-150 ease-in-out cursor-pointer"
                                 aria-haspopup="true"
                                 aria-expanded={listOpen}
                             >
@@ -113,30 +112,28 @@ export default function Navbar() {
                                 </svg>
                             </button>
                             {listOpen && (
-                                <div className="absolute left-0 mt-2 w-56 rounded-md bg-black shadow-lg border border-white z-10">
+                                <div className="absolute left-0 mt-2 w-56 rounded-md bg-white shadow-lg border border-gray-300 z-10">
                                     <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
                                         {projects.length > 0 ? (
                                             <>
-                                                {/* Project list */}
                                                 {projects.map(project => (
                                                     <a
                                                         key={project.project_id}
                                                         onClick={() => projectSelect(project.project_id)}
-                                                        className="block px-4 py-2 text-sm hover:text-gray-300 transition duration-150 ease-in-out cursor-pointer"
+                                                        className="block px-4 py-2 text-sm hover:text-[#2563EB] transition duration-150 ease-in-out cursor-pointer"
                                                         role="menuitem"
                                                     >
                                                         {project.project_name}
                                                     </a>
                                                 ))}
-                                                <div className="border-t border-white/10 my-1"></div>
+                                                <div className="border-t border-gray-300 my-1"></div>
                                             </>
                                         ) : (
-                                            <p className="px-4 py-2 text-sm text-gray-300">No projects yet</p>
+                                            <p className="px-4 py-2 text-sm text-gray-500">No projects yet</p>
                                         )}
-                                        {/* Create new project option */}
                                         <Link
                                             href="/profile/projects/new"
-                                            className="block hover:text-gray-300 transition duration-150 ease-in-out px-4 py-2 text-sm"
+                                            className="block hover:text-[#2563EB] transition duration-150 ease-in-out px-4 py-2 text-sm"
                                             onClick={() => setListOpen(false)}
                                         >
                                             + Create New Project
@@ -145,17 +142,19 @@ export default function Navbar() {
                                 </div>
                             )}
                         </li>
+                        <li className="hover:text-[#2563EB] transition duration-150 ease-in-out cursor-pointer">
+                            <Link href="/profile/overview">My Profile</Link>
+                        </li>
                         <li>
-                            <button className="border border-white bg-white h-3/4 px-4 py-1 rounded-lg hover:bg-black hover:text-white transition duration-150 ease-in-out cursor-pointer text-black" onClick={handleLogout}>Log out</button>
+                            <button className="border border-gray-300 bg-white h-3/4 px-4 py-1 rounded-lg hover:bg-[#2563EB] hover:text-white transition duration-150 ease-in-out cursor-pointer text-[#111827]" onClick={handleLogout}>Log out</button>
                         </li>
                     </>
                 ) : (
                     <>
-                        {/* Links for logged out users */}
-                        <li className="hover:text-gray-300 transition duration-150 ease-in-out cursor-pointer">
+                        <li className="hover:text-[#2563EB] transition duration-150 ease-in-out cursor-pointer">
                             <Link href="/auth/signin">Sign in</Link>
                         </li>
-                        <li className="hover:text-gray-300 transition duration-150 ease-in-out cursor-pointer">
+                        <li className="hover:text-[#2563EB] transition duration-150 ease-in-out cursor-pointer">
                             <Link href="/auth/signup">Create an account</Link>
                         </li>
                     </>

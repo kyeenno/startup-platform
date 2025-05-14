@@ -1,126 +1,122 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabaseClient";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 
 export default function ConnectSources() {
+    const { projectId } = useParams();
     const { user, loading: authLoading } = useAuth();
-    // const [sources, setSources] = useState({
-    //     google_analytics: false,
-    //     stripe: false,
-    // });
+    const [sources, setSources] = useState({
+        google_analytics: false,
+        stripe: false,
+    });
     const [loading, setLoading] = useState(true);
-    // const [connected, setConnected] = useState(false);
+    const [updating, setUpdating] = useState(false);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
-        if (user) {
-            // fetchSources(user.id);
-            setLoading(false);
-        } else if (!authLoading) {
-            setLoading(false);
+        async function fetchConnections() {
+            if (!user || !projectId) return;
+
+            try {
+                setLoading(true);
+                setError(null);
+
+                const { data, error } = await supabase
+                    .from('projects')
+                    .select('google_analytics, stripe')
+                    .eq('project_id', projectId)
+                    .single();
+
+                if (error) throw error;
+
+                if (data) {
+                    setSources({
+                        google_analytics: data.google_analytics || false,
+                        stripe: data.stripe || false
+                    });
+                }
+            } catch (err) {
+                console.err("Error fetching projects:", err);
+            } finally {
+                setLoading(false);
+            }
         }
-    }, [user, authLoading]);
 
-    // const fetchSources = async (userId) => {
-    //     try {
-    //         const response = await fetch(`http://localhost:8000/api/user/connected-sources?userId=${userId}`);
-    //         if (response.ok) {
-    //             const data = await response.json();
-    //             setSources(data.source);
+        fetchConnections();
+    }, [projectId, user]);
 
-    //             // Check if any sources are connected
-    //             const connectedSources = Object.values(data.source).some(val => val === true);
-    //             setConnected(connectedSources);
-    //         }
-    //     } catch (err) {
-    //         console.error("Error fetching srces:", err);
-    //     }
-    // };
+    if (authLoading || loading) {
+        return (
+            <div className="p-6 max-w-2xl mx-auto">
+                <div className="animate-pulse space-y-4">
+                    <div className="h-8 bg-gray-700 rounded w-1/3"></div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="h-48 bg-gray-700 rounded"></div>
+                        <div className="h-48 bg-gray-700 rounded"></div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
-    // const connectGA = () => {
-    //     if (user) {
-    //         window.location.href = `http://localhost:8000/api/connect/google-analytics?userId=${user.id}`;
-    //     }
-    // };
-
-    // const connectStripe = () => {
-    //     if (user) {
-    //         window.location.href = `http://localhost:8000/api/connect/stripe?userId=${user.id}`;
-    //     }
-    // };
-
-    // Check connection status after user has been redirected back to Connect Sources page
-    // useEffect(() => {
-    //     // Set URL params
-    //     const urlParams = new URLSearchParams(window.location.search);
-    //     const status = urlParams.get('status');
-    //     const source = urlParams.get('source');
-
-    //     if (status === 'success' && source) {
-    //         // Update source state if connected
-    //         setSources(prev => ({
-    //             ...prev,
-    //             [source]: true
-    //         }));
-    //         setConnected(true);
-
-    //         // Remove params
-    //         window.history.replaceState({}, document.title, window.location.pathname);
-    //     }
-    // }, []);
-
-    // Validate if the user is logged in
     if (authLoading || loading) return <p>Loading...</p>;
     if (!user) return (
         <p>Please <Link href="/auth/signin" className="hover:underline">sign in</Link> to connect data sources.</p>
     );
 
     return (
-        <div className="p-6 max-w-2xl mx-auto text-center">
-            <h2 className="text-2xl font-bold text-white mb-6">Connect Data Sources</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Google Analytics Card */}
-                    <div className="p-4 rounded-lg flex flex-col h-full border border-white/30 rounded-lg">
-                        <div className="flex-grow">
-                            <div className="flex items-center justify-center mb-4">
-                                <Image 
-                                    width={150}
-                                    height={0}
-                                    src="/ga-icon-white.png"
-                                    alt="Google Analytics logo"
-                                />
-                        </div>
-                    </div>
-
-                    <button
-                        // onClick={connectGA}
-                        className="mt-auto w-full bg-[#2563EB] hover:bg-blue-700 text-white py-2 px-4 rounded transition-colors"
-                    >
-                        {/* {sources.google_analytics ? 'Reconnect' : 'Connect'} */}
-                        Connect
-                    </button>
-                </div>
-
-                {/* Stripe Card */}
-                <div className="border border-white/30 rounded-lg p-4 rounded-lg flex flex-col h-full">
+        <div className="p-6 max-w-2xl mx-auto bg-white rounded-lg shadow-md m-4">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-6">Connect Data Sources</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Google Analytics Card */}
+                <div className="p-4 rounded-lg flex flex-col h-full border border-gray-300">
                     <div className="flex-grow">
                         <div className="flex items-center justify-center mb-4">
-                            <Image 
+                            <Image
                                 width={150}
                                 height={0}
-                                src="/stripe-icon-purple.svg"
+                                src="/ga-icon-white.png"
                                 alt="Google Analytics logo"
                             />
                         </div>
                     </div>
 
                     <button
-                        // onClick={connectStripe}
-                        className="mt-auto w-full bg-[#2563EB] hover:bg-blue-700 text-white py-2 px-4 rounded transition-colors"
+                        disabled={updating}
+                        className={`mt-auto w-full px-4 py-2 rounded font-medium ${updating
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            : 'bg-blue-600 hover:bg-blue-700 text-white'
+                        } transition-colors`}
                     >
-                        {/* {sources.stripe ? 'Reconnect' : 'Connect'} */}
-                        Connect
+                        {updating ? 'Updating...' : sources.google_analytics ? 'Reconnect' : 'Connect'}
+                    </button>
+                </div>
+
+                {/* Stripe Card */}
+                <div className="p-4 rounded-lg flex flex-col h-full border border-gray-300">
+                    <div className="flex-grow">
+                        <div className="flex items-center justify-center mb-4">
+                            <Image
+                                width={150}
+                                height={0}
+                                src="/stripe-icon-purple.svg"
+                                alt="Stripe logo"
+                            />
+                        </div>
+                    </div>
+
+                    <button
+                        disabled={updating}
+                        className={`mt-auto w-full px-4 py-2 rounded font-medium ${updating
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            : 'bg-blue-600 hover:bg-blue-700 text-white'
+                        } transition-colors`}
+                    >
+                        {updating ? 'Updating...' : sources.stripe ? 'Reconnect' : 'Connect'}
                     </button>
                 </div>
             </div>

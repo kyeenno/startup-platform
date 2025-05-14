@@ -64,20 +64,19 @@ export default function UserData({
   };
 
   return (
-    <div className="text-white">
-      <h2 className="text-2xl font-bold mb-4">{title}</h2>
-      
+    <div className="bg-white p-6 rounded-lg shadow-md">
+      <h2 className="text-2xl font-bold text-gray-900 mb-4">{title}</h2>
       {authLoading || isLoading ? (
-        <div className="animate-pulse bg-gray-800 p-4 rounded-lg">
+        <div className="animate-pulse bg-gray-100 p-4 rounded-lg">
           Loading data...
         </div>
       ) : error ? (
-        <div className="bg-red-900/30 border border-red-500 p-4 rounded-lg">
-          <p className="text-red-300">Error: {error}</p>
+        <div className="bg-red-100 border border-red-500 text-red-700 p-4 rounded-lg">
+          <p>Error: {error}</p>
         </div>
       ) : !data || data.length === 0 ? (
-        <div className="bg-gray-800 p-4 rounded-lg">
-          <p className="text-gray-300">No data found.</p>
+        <div className="bg-gray-100 p-4 rounded-lg">
+          <p className="text-gray-500">No data found.</p>
         </div>
       ) : (
         <div className="space-y-4">

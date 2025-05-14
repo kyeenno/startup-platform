@@ -75,11 +75,11 @@ const SignUp = () => {
         <Success />
     ) : (
         <div>
-            <h1 className="text-center mb-8 text-xl text-white">Create an account</h1>
+            <h1 className="text-center mb-8 text-xl">Create an account</h1>
             <form className="w-sm mx-auto flex flex-col justify-center" onSubmit={submit}>
                 <div>
                     <div className="mb-5">
-                        <label htmlFor="name" className="block mb-2 text-sm font-medium text-white">First Name</label>
+                        <label htmlFor="name" className="block mb-2 text-sm font-medium">First Name</label>
                         <InputForm
                             type="text"
                             id="name"
@@ -90,7 +90,7 @@ const SignUp = () => {
                         />
                     </div>
                     <div className="mb-5">
-                        <label htmlFor="surname" className="block mb-2 text-sm font-medium text-white">Last Name</label>
+                        <label htmlFor="surname" className="block mb-2 text-sm font-medium">Last Name</label>
                         <InputForm
                             type="text"
                             id="surname"
@@ -101,7 +101,7 @@ const SignUp = () => {
                         />
                     </div>
                     <div className="mb-5">
-                        <label htmlFor="email" className="block mb-2 text-sm font-medium text-white">Email</label>
+                        <label htmlFor="email" className="block mb-2 text-sm font-medium">Email</label>
                         <InputForm
                             type="email"
                             id="email"
@@ -112,7 +112,7 @@ const SignUp = () => {
                         />
                     </div>
                     <div className="mb-5">
-                        <label htmlFor="password" className="block mb-2 text-sm font-medium text-white">Password</label>
+                        <label htmlFor="password" className="block mb-2 text-sm font-medium">Password</label>
                         <InputForm
                             type="password"
                             id="password"
