@@ -66,7 +66,7 @@ export default function NewProject() {
     }
 
     return (
-        <div className="container mx-auto py-10 max-w-5xl bg-white p-6 m-4 rounded-lg shadow-md">
+                   <div className="container mx-auto py-10 max-w-5xl bg-white p-6 m-4 rounded-lg shadow-md">
             <h1 className="text-2xl font-bold text-gray-900 mb-4">Create a New Project</h1>
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
@@ -94,6 +94,6 @@ export default function NewProject() {
                     </button>
                 </div>
             </form>
-        </div>
+        </div> 
     );
 }

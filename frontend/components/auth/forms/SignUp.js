@@ -74,66 +74,99 @@ const SignUp = () => {
     return success ? (
         <Success />
     ) : (
-        <div>
-            <h1 className="text-center mb-8 text-xl">Create an account</h1>
-            <form className="w-sm mx-auto flex flex-col justify-center" onSubmit={submit}>
-                <div>
-                    <div className="mb-5">
-                        <label htmlFor="name" className="block mb-2 text-sm font-medium">First Name</label>
-                        <InputForm
-                            type="text"
-                            id="name"
-                            placeholder="John"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            required
-                        />
+        <div className="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8 w-screen">
+            <div className="sm:mx-auto sm:w-full sm:max-w-sm">
+                <h2 className="mt-10 text-center text-2xl/9 font-bold tracking-tight text-gray-900">Create an account</h2>
+            </div>
+
+            <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
+                <form className="space-y-6" onSubmit={submit}>
+                    <div>
+                        <label htmlFor="name" className="block text-sm/6 font-medium text-gray-900">First Name</label>
+                        <div className="mt-2">
+                            <input
+                                type="text"
+                                name="name"
+                                id="name"
+                                placeholder="John"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                required
+                                className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-700 sm:text-sm/6"
+                            />
+                        </div>
                     </div>
-                    <div className="mb-5">
-                        <label htmlFor="surname" className="block mb-2 text-sm font-medium">Last Name</label>
-                        <InputForm
-                            type="text"
-                            id="surname"
-                            placeholder="Doe"
-                            value={surname}
-                            onChange={(e) => setSurname(e.target.value)}
-                            required
-                        />
+
+                    <div>
+                        <label htmlFor="surname" className="block text-sm/6 font-medium text-gray-900">Last Name</label>
+                        <div className="mt-2">
+                            <input
+                                type="text"
+                                name="surname"
+                                id="surname"
+                                placeholder="Doe"
+                                value={surname}
+                                onChange={(e) => setSurname(e.target.value)}
+                                required
+                                className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-700 sm:text-sm/6"
+                            />
+                        </div>
                     </div>
-                    <div className="mb-5">
-                        <label htmlFor="email" className="block mb-2 text-sm font-medium">Email</label>
-                        <InputForm
-                            type="email"
-                            id="email"
-                            placeholder="johndoe@example.com"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                        />
+
+                    <div>
+                        <label htmlFor="email" className="block text-sm/6 font-medium text-gray-900">Email address</label>
+                        <div className="mt-2">
+                            <input
+                                type="email"
+                                name="email"
+                                id="email"
+                                placeholder="johndoe@example.com"
+                                autoComplete="email"
+                                required
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-700 sm:text-sm/6"
+                            />
+                        </div>
                     </div>
-                    <div className="mb-5">
-                        <label htmlFor="password" className="block mb-2 text-sm font-medium">Password</label>
-                        <InputForm
-                            type="password"
-                            id="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                        />
+
+                    <div>
+                        <label htmlFor="password" className="block text-sm/6 font-medium text-gray-900">Password</label>
+                        <div className="mt-2">
+                            <input
+                                type="password"
+                                name="password"
+                                id="password"
+                                autoComplete="new-password"
+                                required
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-700 sm:text-sm/6"
+                            />
+                        </div>
                     </div>
-                    <div className="flex items-start">
-                        <p className="text-gray-400">
-                            Existing user? <Link href="/auth/signin" className="hover:underline hover:text-gray-300 transition duration-150 ease-in-out">Sign in instead.</Link>
-                        </p>
+
+                    {err.form && (
+                        <div className="py-2 text-red-500">
+                            {err.form}
+                        </div>
+                    )}
+
+                    <div>
+                        <button
+                            type="submit"
+                            className="transition duration-150 ease-in-out cursor-pointer text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm w-full px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+                        >
+                            Create
+                        </button>
                     </div>
-                </div>
-                {err.form && (
-                    <div className="py-2 text-red-500">
-                        {err.form}
-                    </div>
-                )}
-                <button type="submit" className="mt-5 transition duration-150 ease-in-out cursor-pointer text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm w-full sm:w-auto px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Create</button>
-            </form>
+                </form>
+
+                <p className="mt-10 text-center text-sm/6 text-gray-500">
+                    Existing user?
+                    <Link href="/auth/signin" className="font-semibold text-blue-700 hover:text-blue-600"> Sign in instead.</Link>
+                </p>
+            </div>
         </div>
     );
 }
