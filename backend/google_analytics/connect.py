@@ -11,6 +11,7 @@ from cryptography.fernet import Fernet
 import logging
 import jwt
 from jwt.exceptions import InvalidTokenError
+from auth import verify_token
 
 #load env vars from .env file
 load_dotenv()
@@ -90,17 +91,6 @@ def refresh_access_token(refresh_token: str) -> dict:
 #     # Replace this with actual logic when the frontend is ready
 #     return {"user_id": "example_user_id", "project_id": "example_project_id"}
 
-#verify JWT and extract user_id
-def verify_jwt_token(token: str) -> str:
-    try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
-        user_id = payload.get("sub")
-        if not user_id:
-            raise ValueError("Token contains no user ID")
-        return user_id
-    except InvalidTokenError as e:
-        logging.error(f"Invalid JWT token: {str(e)}")
-        raise ValueError(f"Invalid JWT token: {str(e)}")
 
 #create oauth flow
 def create_oauth_flow():
@@ -131,7 +121,7 @@ def get_auth_url():
     logging.info(f"Generated auth URL: {auth_url[:50]}...")  # Log only first 50 chars for security
     return {"auth_url": auth_url}
 
-#2: step 2: Google sends user back → get token
+#2: step 2: callback endpoint, get token
 @router.get("/callback")
 def google_callback(request: FastAPIRequest):
 
@@ -143,12 +133,50 @@ def google_callback(request: FastAPIRequest):
         return JSONResponse({"status": "error", "message": "Missing authorization code"}, status_code=400)
 
     # TEMPORARY MODE: Use hardcoded values for testing
-    # In production, this will be replaced with JWT authentication
     user_id = "hardcoded_user_id"  # Temporary for testing
     project_id = "hardcoded_project_id"  # Temporary for testing
     supabase_authed = supabase # Temporary for testing
 
-    
+    # JWT MODE (commented out until frontend is ready)
+    """
+    auth_header = request.headers.get('Authorization')
+    if not auth_header or not auth_header.startswith('Bearer '):
+        logging.error("Missing or invalid authorization header")
+        return JSONResponse(
+            {"status": "error", "message": "Unauthorized"}, 
+            status_code=401
+        )
+
+    # Extract JWT token
+    jwt_token = auth_header.split(' ')[1]
+
+    try:
+        #verify token and get user_id
+        payload = verify_token(jwt_token)
+        user_id = payload.get("sub")
+        logging.info(f"Authenticated user: {user_id}")
+
+        #get project_id from query parameters
+        project_id = request.query_params.get("project_id")
+        if not project_id:
+            logging.error("Missing project_id parameter")
+            return JSONResponse({"status": "error", "message": "Missing project_id"}, status_code=400)
+
+        # Create authenticated Supabase client with JWT token
+        supabase_authed = create_client(
+            SUPABASE_URL,
+            SUPABASE_SERVICE_ROLE_KEY,
+            options={
+                'headers': {
+                    'Authorization': f'Bearer {jwt_token}'
+                }
+            }
+        )
+
+    except ValueError as e:
+        logging.error(f"JWT verification failed: {str(e)}")
+        return JSONResponse({"status": "error", "message": "Invalid authentication token"}, status_code=401)
+    """
     
     if not user_id or not project_id:
         logging.error("Invalid user_id or project_id")
@@ -230,7 +258,6 @@ def google_callback(request: FastAPIRequest):
 #3: step 3: automatically refresh token
 @router.get("/refresh-token/{user_id}/{project_id}")
 def refresh_token_endpoint(user_id: str, project_id: str):
-    """Refresh expired access token for a given user_id and project_id"""
     
     logging.info(f"Token refresh requested for user_id: {user_id}, project_id: {project_id}")
     
