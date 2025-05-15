@@ -18,3 +18,6 @@ __pycache__/
 
 # Token json
 token.json
+
+#local test files
+TESTFILE.py
