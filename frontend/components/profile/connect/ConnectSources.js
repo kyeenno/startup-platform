@@ -2,20 +2,29 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
-import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 
 export default function ConnectSources() {
-    const { projectId } = useParams();
-    const { user, loading: authLoading } = useAuth();
+    const params = useParams();
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const { user, loading: authLoading, session } = useAuth();
     const [sources, setSources] = useState({
         google_analytics: false,
         stripe: false,
     });
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [updating, setUpdating] = useState(false);
     const [error, setError] = useState(null);
+
+    const projectId =
+        params?.projectId ||
+        searchParams?.get('project_id') ||
+        (typeof router.query === 'object' ? router.query.project_id : null);
+
+    console.log('Project ID param:', projectId);
 
     useEffect(() => {
         async function fetchConnections() {
@@ -49,6 +58,49 @@ export default function ConnectSources() {
         fetchConnections();
     }, [projectId, user]);
 
+    const connectGA = async () => {
+        if (!user || !projectId) return;
+
+        try {
+            setUpdating(true);
+            console.log('Projects:', `${projectId}`);
+
+            const { data: sessionData } = await supabase.auth.getSession();
+            if (!sessionData?.session) {
+                throw new Error("No active session");
+            }
+
+            // Calling the API route
+            const response = await fetch(`/api/google-analytics/auth-url?project_id=${projectId}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${sessionData.session.access_token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+            console.log('Auth data received:', data);
+
+            if (data.auth_url) {
+                window.location.href = data.auth_url;
+            } else {
+                console.log("No auth URL");
+            }
+        } catch (error) {
+            console.error('Error connecting:', error);
+            setError(`${error.message}`);
+        } finally {
+            setUpdating(false);
+        }
+    };
+
+    console.log({
+        "params": params,
+        "searchParams": Object.fromEntries([...searchParams]),
+        "projectId": projectId
+    });
+
     if (authLoading || loading) {
         return (
             <div className="p-6 max-w-2xl mx-auto">
@@ -57,6 +109,9 @@ export default function ConnectSources() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="h-48 bg-gray-700 rounded"></div>
                         <div className="h-48 bg-gray-700 rounded"></div>
+                        <p className="text-xs text-gray-500">
+                            {projectId ? `Connected to project: ${projectId}` : "No project selected"}
+                        </p>
                     </div>
                 </div>
             </div>
@@ -86,11 +141,12 @@ export default function ConnectSources() {
                     </div>
 
                     <button
+                        onClick={connectGA}
                         disabled={updating}
                         className={`mt-auto w-full px-4 py-2 rounded font-medium ${updating
                             ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                             : 'bg-blue-600 hover:bg-blue-700 text-white'
-                        } transition-colors`}
+                            } transition-colors`}
                     >
                         {updating ? 'Updating...' : sources.google_analytics ? 'Reconnect' : 'Connect'}
                     </button>
@@ -114,7 +170,7 @@ export default function ConnectSources() {
                         className={`mt-auto w-full px-4 py-2 rounded font-medium ${updating
                             ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                             : 'bg-blue-600 hover:bg-blue-700 text-white'
-                        } transition-colors`}
+                            } transition-colors`}
                     >
                         {updating ? 'Updating...' : sources.stripe ? 'Reconnect' : 'Connect'}
                     </button>

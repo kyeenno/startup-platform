@@ -16,7 +16,7 @@ export default function HomePage() {
   }, [user, router]);
 
   return (
-    <div className="min-h-screen bg-[#131615] text-white flex justify-center items-center">
+    <div className="min-h-screen bg-white flex justify-center items-center">
       <div className="mx-auto px-4 py-16">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-5xl font-bold mb-8">Welcome to Datlee</h1>

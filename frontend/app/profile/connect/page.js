@@ -1,3 +1,5 @@
+"use client";
+
 import ConnectSources from "@/components/profile/connect/ConnectSources";
 
 export default function ConnectPage() {
