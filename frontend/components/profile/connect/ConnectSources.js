@@ -8,7 +8,7 @@ import Image from "next/image";
 
 export default function ConnectSources() {
     const { projectId } = useParams();
-    const { user, loading: authLoading } = useAuth();
+    const { user, loading: authLoading, session } = useAuth();
     const [sources, setSources] = useState({
         google_analytics: false,
         stripe: false,
@@ -16,38 +16,143 @@ export default function ConnectSources() {
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState(false);
     const [error, setError] = useState(null);
+    const [message, setMessage] = useState(null);
+
+    async function fetchConnections() {
+        if (!user || !projectId) return;
+
+        try {
+            setLoading(true);
+            setError(null);
+
+            const { data, error } = await supabase
+                .from('projects')
+                .select('google_analytics, stripe')
+                .eq('project_id', projectId)
+                .single();
+
+            if (error) throw error;
+
+            if (data) {
+                setSources({
+                    google_analytics: data.google_analytics || false,
+                    stripe: data.stripe || false
+                });
+            }
+        } catch (err) {
+            console.error("Error fetching projects:", err);
+            setError("Failed to load connection status");
+        } finally {
+            setLoading(false);
+        }
+    }
 
     useEffect(() => {
-        async function fetchConnections() {
-            if (!user || !projectId) return;
-
-            try {
-                setLoading(true);
-                setError(null);
-
-                const { data, error } = await supabase
-                    .from('projects')
-                    .select('google_analytics, stripe')
-                    .eq('project_id', projectId)
-                    .single();
-
-                if (error) throw error;
-
-                if (data) {
-                    setSources({
-                        google_analytics: data.google_analytics || false,
-                        stripe: data.stripe || false
-                    });
-                }
-            } catch (err) {
-                console.err("Error fetching projects:", err);
-            } finally {
-                setLoading(false);
-            }
-        }
-
         fetchConnections();
     }, [projectId, user]);
+
+    useEffect(() => {
+        // Handle redirect from OAuth process
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            const connection = params.get('connection');
+            const message = params.get('message');
+            
+            if (connection === 'success') {
+                // Show success message and refresh connection status
+                setMessage({ type: 'success', text: 'Connection successful!' });
+                // Refresh your connections data
+                fetchConnections();
+            } else if (connection === 'error') {
+                // Show error message
+                setError(message || 'Connection failed');
+            }
+            
+            // Clear the URL parameters
+            if (connection) {
+                const url = new URL(window.location);
+                url.search = '';
+                window.history.replaceState({}, '', url);
+            }
+        }
+    }, []);
+
+    async function connectGoogleAnalytics() {
+        if (!user || !projectId) return;
+
+        try {
+            setUpdating(true);
+            setError(null);
+
+            console.log("Session token:", session?.access_token);
+            console.log("Project ID:", projectId);
+
+            // Add projectId to the request URL
+            const response = await fetch(`/api/google/auth-url?project_id=${projectId}`, {
+                headers: {
+                    'Authorization': `Bearer ${session?.access_token || ''}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            console.log("Response status:", response.status);
+            
+            const data = await response.json();
+            console.log("Response data:", data);
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to get Google Auth URL');
+            }
+
+            // Redirect to Google OAuth page
+            if (data.auth_url) {
+                window.location.href = data.auth_url;
+            } else {
+                throw new Error('No auth URL returned');
+            }
+
+        } catch (err) {
+            console.error("Error connecting Google Analytics:", err);
+            setError(err.message);
+        } finally {
+            setUpdating(false);
+        }
+    }
+
+    async function connectStripe() {
+        if (!projectId || !user) return;
+
+        try {
+            setUpdating(true);
+            setError(null);
+
+            // Call your backend to get Stripe Auth URL
+            const response = await fetch(`/api/stripe/auth-url?project_id=${projectId}`, {
+                headers: {
+                    'Authorization': `Bearer ${session?.access_token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to get Stripe Auth URL');
+            }
+
+            const data = await response.json();
+
+            // Redirect to Stripe OAuth page
+            if (data.auth_url) {
+                window.location.href = data.auth_url;
+            } else {
+                throw new Error('No auth URL returned');
+            }
+
+        } catch (err) {
+            console.error("Error connecting Stripe:", err);
+            setError(err.message);
+        } finally {
+            setUpdating(false);
+        }
+    }
 
     if (authLoading || loading) {
         return (
@@ -63,7 +168,6 @@ export default function ConnectSources() {
         );
     }
 
-    if (authLoading || loading) return <p>Loading...</p>;
     if (!user) return (
         <p>Please <Link href="/auth/signin" className="hover:underline">sign in</Link> to connect data sources.</p>
     );
@@ -71,6 +175,16 @@ export default function ConnectSources() {
     return (
         <div className="p-6 max-w-2xl mx-auto bg-white rounded-lg shadow-md m-4">
             <h2 className="text-2xl font-semibold text-gray-900 mb-6">Connect Data Sources</h2>
+            {error && (
+                <div className="mb-6 p-3 bg-red-100 text-red-700 rounded border border-red-300">
+                    {error}
+                </div>
+            )}
+            {message && message.type === 'success' && (
+                <div className="mb-6 p-3 bg-green-100 text-green-700 rounded border border-green-300">
+                    {message.text}
+                </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Google Analytics Card */}
                 <div className="p-4 rounded-lg flex flex-col h-full border border-gray-300">
@@ -86,13 +200,14 @@ export default function ConnectSources() {
                     </div>
 
                     <button
+                        onClick={connectGoogleAnalytics}
                         disabled={updating}
                         className={`mt-auto w-full px-4 py-2 rounded font-medium ${updating
                             ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                             : 'bg-blue-600 hover:bg-blue-700 text-white'
                         } transition-colors`}
                     >
-                        {updating ? 'Updating...' : sources.google_analytics ? 'Reconnect' : 'Connect'}
+                        {updating ? 'Connecting...' : sources.google_analytics ? 'Reconnect' : 'Connect'}
                     </button>
                 </div>
 
@@ -110,13 +225,14 @@ export default function ConnectSources() {
                     </div>
 
                     <button
+                        onClick={connectStripe}
                         disabled={updating}
                         className={`mt-auto w-full px-4 py-2 rounded font-medium ${updating
                             ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                             : 'bg-blue-600 hover:bg-blue-700 text-white'
                         } transition-colors`}
                     >
-                        {updating ? 'Updating...' : sources.stripe ? 'Reconnect' : 'Connect'}
+                        {updating ? 'Connecting...' : sources.stripe ? 'Reconnect' : 'Connect'}
                     </button>
                 </div>
             </div>

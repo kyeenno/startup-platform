@@ -1,98 +1,36 @@
 from fastapi import APIRouter, Request as FastAPIRequest
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 import os
 from dotenv import load_dotenv
 from google_auth_oauthlib.flow import Flow
-from google.oauth2.credentials import Credentials #for token refresh
-from google.auth.transport.requests import Request as google_requests #for token refresh
-from supabase import create_client
+from google.oauth2.credentials import Credentials
 from datetime import datetime, timezone
-from cryptography.fernet import Fernet
 import logging
 import jwt
 from jwt.exceptions import InvalidTokenError
 from auth import verify_token
+from .fetch_metrics import get_all_analytics_data, get_valid_credentials
+# Import from shared module
+from .shared import (
+    supabase, ENCRYPTION_KEY, CLIENT_ID, CLIENT_SECRET, REDIRECT_URI, 
+    SCOPES, encrypt_token, decrypt_token, refresh_access_token
+)
 
-#load env vars from .env file
-load_dotenv()
-
-#initialize logging
-logging.basicConfig(level=logging.INFO)
-
-#encryption key assign and check
-ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY")
-if not ENCRYPTION_KEY:
-    raise ValueError("Missing ENCRYPTION_KEY environment variable")
-cipher = Fernet(ENCRYPTION_KEY)
-
-#create FastAPI router for this module
+# Create FastAPI router for this module
 router = APIRouter()
 
-#assign .env variables
-CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
-CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI")
-SCOPES = ["https://www.googleapis.com/auth/analytics.readonly"]
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
-
-
-#validate environment variables
-if not all([CLIENT_ID, CLIENT_SECRET, REDIRECT_URI, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY]):
-    raise ValueError("Missing one or more required environment variables")
-if not JWT_SECRET:
-    raise ValueError("Missing SUPABASE_JWT_SECRET environment variable")
-
-#create supabase client
-supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-
-#encrypt token
-def encrypt_token(token: str) -> str:
-    return cipher.encrypt(token.encode()).decode()
-
-#decrypt token
-def decrypt_token(token: str) -> str:
-    return cipher.decrypt(token.encode()).decode()
-
-#required scopes for Google Analytics
+# Required scopes for Google Analytics
 REQUIRED_SCOPES = {
     "https://www.googleapis.com/auth/analytics.readonly"
-    #add more scopes if needed later
+    # Add more scopes if needed later
 }
 
-#verify if all required scopes were granted
+# Verify if all required scopes were granted
 def verify_scopes(granted_scopes: list) -> bool:
     granted_scope_set = set(granted_scopes)
     return REQUIRED_SCOPES.issubset(granted_scope_set)
 
-#refresh an expired access token using the refresh token
-def refresh_access_token(refresh_token: str) -> dict:
-    try:
-        credentials = Credentials(
-            None,
-            refresh_token=decrypt_token(refresh_token),
-            token_uri="https://oauth2.googleapis.com/token",
-            client_id=CLIENT_ID,
-            client_secret=CLIENT_SECRET,
-        )
-        credentials.refresh(google_requests())
-        return {
-            "access_token": credentials.token,
-            "refresh_token": refresh_token
-        }
-    except Exception as e:
-        logging.error(f"Token refresh failed: {str(e)}")
-        raise
-
-# not needed if JWT tokens for authentification is used
-# def get_userid_and_projectid_from_frontend():
-#     # Simulate fetching user_id and project_id from a frontend table or API
-#     # Replace this with actual logic when the frontend is ready
-#     return {"user_id": "example_user_id", "project_id": "example_project_id"}
-
-
-#create oauth flow
+# Create oauth flow
 def create_oauth_flow():
     logging.info("Creating OAuth flow")
     flow = Flow.from_client_config(
@@ -113,147 +51,220 @@ def create_oauth_flow():
 
 #1: step 1: Send user to Google login page
 @router.get("/auth-url")
-def get_auth_url():
+async def get_auth_url(request: FastAPIRequest):
+    """Generate Google OAuth URL"""
     logging.info("Generating Google OAuth URL")
-    flow = create_oauth_flow()
-    flow.redirect_uri = REDIRECT_URI
-    auth_url, _ = flow.authorization_url(prompt="consent", access_type="offline", include_granted_scopes="true")
-    logging.info(f"Generated auth URL: {auth_url[:50]}...")  # Log only first 50 chars for security
-    return {"auth_url": auth_url}
+    
+    # For debugging, print the headers
+    logging.info(f"Request headers: {dict(request.headers)}")
+    
+    # Get authorization header
+    auth_header = request.headers.get('Authorization')
+    logging.info(f"Auth header: {auth_header}")
+    
+    project_id = request.query_params.get("project_id")
+    if not project_id:
+        logging.error("Missing project_id parameter")
+        return JSONResponse({"status": "error", "message": "Missing project_id"}, status_code=400)
+
+    # Get the user_id who owns this project
+    try:
+        # Query project_to_user table to find the user
+        project_owner_query = supabase.table("project_to_user").select("user_id").eq(
+            "project_id", project_id).execute()
+        
+        logging.info(f"Query response: {project_owner_query}")
+        
+        if not project_owner_query.data:
+            logging.error(f"No user found for project: {project_id}")
+            return JSONResponse({"status": "error", "message": "Project user not found"}, status_code=404)
+        
+        # Just use the first user associated with the project
+        user_id = project_owner_query.data[0]["user_id"]
+        logging.info(f"Found project user: {user_id}")
+    except Exception as e:
+        logging.error(f"Error finding project user: {str(e)}")
+        logging.error(f"Error details: {str(e)}")
+        # Return a more specific error message
+        return JSONResponse({"status": "error", "message": f"Database error: {str(e)}"}, status_code=500)
+    
+    try:
+        # Skip token validation for now (we'll implement proper validation later)
+        # Create state parameter with user_id and project_id
+        state = {
+            "user_id": user_id,
+            "project_id": project_id
+        }
+        
+        # Convert state to JSON string and encode
+        state_token = jwt.encode(state, ENCRYPTION_KEY, algorithm="HS256")
+        
+        # Create OAuth flow
+        logging.info("Creating OAuth flow")
+        flow = create_oauth_flow()
+        
+        # Generate auth URL with state parameter
+        auth_url, _ = flow.authorization_url(
+            prompt="consent", 
+            access_type="offline", 
+            include_granted_scopes="true",
+            state=state_token
+        )
+        
+        logging.info(f"Generated auth URL: {auth_url[:50]}...")
+        return {"auth_url": auth_url}
+    
+    except Exception as e:
+        logging.error(f"Error generating auth URL: {str(e)}")
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 #2: step 2: callback endpoint, get token
 @router.get("/callback")
-def google_callback(request: FastAPIRequest):
-
-    #get auth code from Google callback and verify
+async def google_callback(request: FastAPIRequest):
+    """Handle Google OAuth callback"""
     logging.info("Received callback from Google OAuth")
+    
+    # Get code and state from callback parameters
     code = request.query_params.get("code")
+    state_token = request.query_params.get("state")
+    
     if not code:
         logging.error("Missing authorization code")
         return JSONResponse({"status": "error", "message": "Missing authorization code"}, status_code=400)
-
-    # TEMPORARY MODE: Use hardcoded values for testing
-    user_id = "hardcoded_user_id"  # Temporary for testing
-    project_id = "hardcoded_project_id"  # Temporary for testing
-    supabase_authed = supabase # Temporary for testing
-
-    # JWT MODE (commented out until frontend is ready)
-    """
-    auth_header = request.headers.get('Authorization')
-    if not auth_header or not auth_header.startswith('Bearer '):
-        logging.error("Missing or invalid authorization header")
-        return JSONResponse(
-            {"status": "error", "message": "Unauthorized"}, 
-            status_code=401
-        )
-
-    # Extract JWT token
-    jwt_token = auth_header.split(' ')[1]
-
-    try:
-        #verify token and get user_id
-        payload = verify_token(jwt_token)
-        user_id = payload.get("sub")
-        logging.info(f"Authenticated user: {user_id}")
-
-        #get project_id from query parameters
-        project_id = request.query_params.get("project_id")
-        if not project_id:
-            logging.error("Missing project_id parameter")
-            return JSONResponse({"status": "error", "message": "Missing project_id"}, status_code=400)
-
-        # Create authenticated Supabase client with JWT token
-        supabase_authed = create_client(
-            SUPABASE_URL,
-            SUPABASE_SERVICE_ROLE_KEY,
-            options={
-                'headers': {
-                    'Authorization': f'Bearer {jwt_token}'
-                }
-            }
-        )
-
-    except ValueError as e:
-        logging.error(f"JWT verification failed: {str(e)}")
-        return JSONResponse({"status": "error", "message": "Invalid authentication token"}, status_code=401)
-    """
     
-    if not user_id or not project_id:
-        logging.error("Invalid user_id or project_id")
-        return JSONResponse({"status": "error", "message": "Invalid user_id or project_id"}, status_code=400)
-    	
-    flow = create_oauth_flow()
-
+    if not state_token:
+        logging.error("Missing state token")
+        return JSONResponse({"status": "error", "message": "Missing state token"}, status_code=400)
+    
     try:
+        # Decode state token to get user_id and project_id
+        state = jwt.decode(state_token, ENCRYPTION_KEY, algorithms=["HS256"])
+        user_id = state.get("user_id")
+        project_id = state.get("project_id")
+        
+        logging.info(f"Processing callback for user {user_id}, project {project_id}")
+        
+        # Create OAuth flow with the same parameters
+        logging.info("Creating OAuth flow")
+        flow = create_oauth_flow()
+        
+        # Exchange auth code for tokens
         logging.info("Fetching tokens from Google")
         flow.fetch_token(code=code)
-        creds = flow.credentials
-        logging.info("Successfully fetched tokens")
-
+        
+        # Verify required scopes
         logging.info("Verifying required scopes")
-        if not verify_scopes(creds.scopes):
-            logging.error(f"Missing required scopes. Got: {creds.scopes}")
-            return JSONResponse(
-                {"status": "error", "message": "Missing required permissions"}, 
-                status_code=400
-            )
-        logging.info("Scopes verified successfully")
-
-    except Exception as e:
-        logging.error(f"Token fetch failed: {str(e)}")
-        return JSONResponse({"status": "error", "message": f"Token fetch failed: {str(e)}"}, status_code=500)
-
-    logging.info("Encrypting tokens")
-    try:
-        encrypted_access_token = encrypt_token(creds.token)
-        encrypted_refresh_token = encrypt_token(creds.refresh_token)
+        required_scopes = set(['https://www.googleapis.com/auth/analytics.readonly'])
+        if not required_scopes.issubset(set(flow.credentials.scopes)):
+            logging.error("Missing required scopes")
+            return JSONResponse({"status": "error", "message": "Missing required scopes"}, status_code=400)
+        
+        # Encrypt the tokens
+        logging.info("Encrypting tokens")
+        encrypted_token = encrypt_token(flow.credentials.token)
+        encrypted_refresh_token = encrypt_token(flow.credentials.refresh_token) if flow.credentials.refresh_token else None
+        
         logging.info("Tokens encrypted successfully")
-    except Exception as e:
-        logging.error(f"Failed to encrypt tokens: {str(e)}")
-        return JSONResponse({"status": "error", "message": f"Failed to encrypt tokens: {str(e)}"}, status_code=500)
-
-    # Save to Supabase
-    try:
+        
+        # Check if credentials already exist for this user and project
         logging.info("Checking for existing credentials")
-        # First, check if credentials exist for this user_id and project_id
-        existing = supabase_authed.table("google_analytics_credentials").select("*").eq("user_id", user_id).eq("project_id", project_id).execute()
-
-        if existing.data:
+        result = supabase.table("google_analytics_credentials").select("*").eq(
+            "user_id", user_id).eq("project_id", project_id).execute()
+        
+        if result.data:
+            # Update existing credentials
             logging.info("Updating existing credentials")
-            response = supabase_authed.table("google_analytics_credentials").update({
-                "access_token": encrypted_access_token,
+            supabase.table("google_analytics_credentials").update({
+                "access_token": encrypted_token,
                 "refresh_token": encrypted_refresh_token,
-                "token_uri": creds.token_uri,
-                "scopes": creds.scopes,
+                "token_uri": "https://oauth2.googleapis.com/token",  # Fixed token URI for Google OAuth
                 "updated_at": datetime.now(timezone.utc).isoformat()
             }).eq("user_id", user_id).eq("project_id", project_id).execute()
         else:
-            logging.info("Creating new credentials entry")
-            response = supabase_authed.table("google_analytics_credentials").insert({
+            # Create new credentials
+            logging.info("Creating new credentials")
+            supabase.table("google_analytics_credentials").insert({
                 "user_id": user_id,
                 "project_id": project_id,
-                "source_type": "google_analytics",
-                "access_token": encrypted_access_token,
+                "access_token": encrypted_token,
                 "refresh_token": encrypted_refresh_token,
-                "token_uri": creds.token_uri,
-                "scopes": creds.scopes,
+                "token_uri": "https://oauth2.googleapis.com/token",  # Fixed token URI for Google OAuth
                 "created_at": datetime.now(timezone.utc).isoformat(),
                 "updated_at": datetime.now(timezone.utc).isoformat()
             }).execute()
-
-        if not response.data:
-            logging.error(f"Failed to save credentials to database: {response}")
-            return JSONResponse({"status": "error", "message": "Failed to save credentials to database"}, status_code=500)
         
         logging.info("Credentials saved to Supabase successfully")
-
+        
+        # Update project record to indicate Google Analytics is connected
+        try:
+            project_update = supabase.table("projects").update({
+                "google_analytics": True
+                # Remove the updated_at line
+            }).eq("project_id", project_id).execute()
+            logging.info(f"Project update response: {project_update}")
+        except Exception as project_err:
+            logging.error(f"Error updating project: {str(project_err)}")
+            # Continue anyway - we've already stored the credentials
+    
+        logging.info("Google account connected successfully")
+        
+        # Fetch initial metrics using the function from fetch_metrics.py
+        try:
+            import asyncio
+            from googleapiclient.discovery import build
+            from types import SimpleNamespace
+        
+            # Get valid credentials
+            credentials = await get_valid_credentials(user_id, project_id)
+            
+            if credentials:
+                # Get property information from Google Analytics
+                analytics_admin = build('analyticsadmin', 'v1beta', credentials=credentials)
+                account_summaries = analytics_admin.accountSummaries().list().execute()
+                
+                # For each property, fetch metrics
+                for account in account_summaries.get('accountSummaries', []):
+                    for prop in account.get('propertySummaries', []):
+                        property_id = prop.get("property", "").split('/')[-1]
+                        
+                        logging.info(f"Fetching initial metrics for property: {property_id}")
+                        
+                        # Use direct parameters instead of mocking the request object
+                        from google_analytics.fetch_metrics import get_analytics_data_internal
+                        
+                        # Call internal version that doesn't need request headers
+                        fetch_result = await get_analytics_data_internal(
+                            user_id=user_id,
+                            project_id=project_id,
+                            property_id=property_id,
+                            days=1
+                        )
+                        logging.info(f"Initial metrics fetch complete: {fetch_result.get('message', 'No message')}")
+                
+                logging.info("All initial metrics fetched successfully")
+            else:
+                logging.warning("Could not get valid credentials for initial metrics fetch")
+                
+        except Exception as fetch_err:
+            logging.error(f"Error fetching initial metrics: {str(fetch_err)}")
+            import traceback
+            logging.error(traceback.format_exc())
+            # Continue anyway - connection was successful
+        
+        
+        # Redirect to frontend
+        frontend_url = f"http://localhost:3000/profile/projects/{project_id}"
+        return RedirectResponse(url=f"{frontend_url}?connection=success")
+        
     except Exception as e:
-        logging.error(f"Database operation failed: {str(e)}")
-        return JSONResponse({"status": "error", "message": f"Database operation failed: {str(e)}"}, status_code=500)
-
-    logging.info("Google account connected successfully")
-    return JSONResponse({"status": "success", "message": "Google account connected successfully"}, status_code=200)
-
+        logging.error(f"Error processing callback: {str(e)}")
+        # Also log the full details for debugging
+        import traceback
+        logging.error(traceback.format_exc())
+        
+        # Return a redirect to frontend with error - make sure the URL structure is correct
+        frontend_url = f"http://localhost:3000/profile/projects/{project_id}"
+        return RedirectResponse(url=f"{frontend_url}?connection=error&message=Connection+failed")
 
 #3: step 3: automatically refresh token
 @router.get("/refresh-token/{user_id}/{project_id}")

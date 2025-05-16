@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request as FastAPIRequest, Depends
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 import os
 from dotenv import load_dotenv
 import stripe
@@ -268,12 +268,8 @@ async def stripe_callback(request: FastAPIRequest):
             # Continue anyway, we have the essential connection data
 
         # Return success response with more information
-        return JSONResponse({
-            "status": "success", 
-            "message": "Stripe account connected successfully",
-            "account_id": stripe_user_id[:5] + "...",  # Only show part of the ID for security
-            "account_name": account_name
-        })
+        frontend_url = "http://localhost:3000/profile"  # Update with your frontend URL path
+        return RedirectResponse(url=f"{frontend_url}?connection=success")
         
     except jwt.InvalidTokenError as e:
         logging.error(f"Invalid state token: {str(e)}")
