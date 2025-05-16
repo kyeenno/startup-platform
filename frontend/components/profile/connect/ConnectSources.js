@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
 import { useParams } from "next/navigation";
@@ -18,7 +18,7 @@ export default function ConnectSources() {
     const [error, setError] = useState(null);
     const [message, setMessage] = useState(null);
 
-    async function fetchConnections() {
+    const fetchConnections = useCallback(async () => {
         if (!user || !projectId) return;
 
         try {
@@ -45,11 +45,11 @@ export default function ConnectSources() {
         } finally {
             setLoading(false);
         }
-    }
+    }, [user, projectId]);
 
     useEffect(() => {
         fetchConnections();
-    }, [projectId, user]);
+    }, [fetchConnections]);
 
     useEffect(() => {
         // Handle redirect from OAuth process
@@ -75,7 +75,7 @@ export default function ConnectSources() {
                 window.history.replaceState({}, '', url);
             }
         }
-    }, []);
+    }, [fetchConnections]);
 
     async function connectGoogleAnalytics() {
         if (!user || !projectId) return;
@@ -84,8 +84,8 @@ export default function ConnectSources() {
             setUpdating(true);
             setError(null);
 
-            console.log("Session token:", session?.access_token);
-            console.log("Project ID:", projectId);
+            console.log("Connecting Google Analytics for project:", projectId);
+            console.log("Session token:", session?.access_token ? "Present" : "Missing");
 
             // Add projectId to the request URL
             const response = await fetch(`/api/google/auth-url?project_id=${projectId}`, {
@@ -106,6 +106,7 @@ export default function ConnectSources() {
 
             // Redirect to Google OAuth page
             if (data.auth_url) {
+                console.log("Redirecting to Google OAuth:", data.auth_url);
                 window.location.href = data.auth_url;
             } else {
                 throw new Error('No auth URL returned');
@@ -113,7 +114,7 @@ export default function ConnectSources() {
 
         } catch (err) {
             console.error("Error connecting Google Analytics:", err);
-            setError(err.message);
+            setError(err.message || 'An unknown error occurred');
         } finally {
             setUpdating(false);
         }
@@ -126,21 +127,29 @@ export default function ConnectSources() {
             setUpdating(true);
             setError(null);
 
+            console.log("Connecting Stripe for project:", projectId);
+            console.log("Session token:", session?.access_token ? "Present" : "Missing");
+
             // Call your backend to get Stripe Auth URL
             const response = await fetch(`/api/stripe/auth-url?project_id=${projectId}`, {
                 headers: {
-                    'Authorization': `Bearer ${session?.access_token}`
+                    'Authorization': `Bearer ${session?.access_token || ''}`,
+                    'Content-Type': 'application/json'
                 }
             });
 
-            if (!response.ok) {
-                throw new Error('Failed to get Stripe Auth URL');
-            }
-
+            console.log("Stripe auth response status:", response.status);
+            
             const data = await response.json();
+            console.log("Stripe auth response data:", data);
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to get Stripe Auth URL');
+            }
 
             // Redirect to Stripe OAuth page
             if (data.auth_url) {
+                console.log("Redirecting to Stripe OAuth:", data.auth_url);
                 window.location.href = data.auth_url;
             } else {
                 throw new Error('No auth URL returned');
@@ -148,7 +157,7 @@ export default function ConnectSources() {
 
         } catch (err) {
             console.error("Error connecting Stripe:", err);
-            setError(err.message);
+            setError(err.message || 'An unknown error occurred');
         } finally {
             setUpdating(false);
         }

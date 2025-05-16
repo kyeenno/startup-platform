@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel  # For request validation
 from google_analytics.connect import router as ga_router
 from google_analytics.fetch_metrics import router as analytics_router
-from stripe_data.connect import router as stripe_connect_router
+from stripe_data.connect import router as stripe_router
 from stripe_data.fetch_metrics import router as stripe_metrics_router
 
 # Load environment variables
@@ -127,5 +127,5 @@ app.include_router(ga_router, prefix="/google")
 app.include_router(analytics_router, prefix="/analytics", tags=["Analytics"])
 
 #mount stripe routes under /stripe
-app.include_router(stripe_connect_router, prefix="/stripe")
-app.include_router(stripe_metrics_router, prefix="/stripe/metrics")
+app.include_router(stripe_router, prefix="/stripe", tags=["stripe"])
+app.include_router(stripe_metrics_router, prefix="/stripe/metrics", tags=["stripe"])
