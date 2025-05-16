@@ -6,11 +6,9 @@ from dotenv import load_dotenv
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from auth import verify_token
-
-# Import from connect.py for credential management
-from .connect import supabase, decrypt_token, refresh_access_token, encrypt_token
+from .shared import supabase, decrypt_token, refresh_access_token, encrypt_token
 
 # Load environment variables
 load_dotenv()
@@ -152,9 +150,50 @@ async def list_properties(request: FastAPIRequest):
 @router.get("/data")
 async def get_all_analytics_data(request: FastAPIRequest):
     
-    # For testing, use hardcoded values
-    user_id = "hardcoded_user_id"
-    project_id = "hardcoded_project_id"
+    # Get auth header for JWT verification
+    auth_header = request.headers.get('Authorization')
+    user_id = None
+    project_id = None
+    
+    if auth_header and auth_header.startswith('Bearer '):
+        try:
+            # Extract JWT token and verify
+            jwt_token = auth_header.split(' ')[1]
+            payload = verify_token(jwt_token)
+            user_id = payload.get("sub")
+            logging.info(f"Authenticated user: {user_id}")
+            
+            # Get project_id from query parameters
+            project_id = request.query_params.get("project_id")
+        except Exception as auth_err:
+            logging.error(f"Auth error: {str(auth_err)}")
+            # Fall back to query parameters
+    
+    # If not set via JWT, get from query parameters directly
+    if not user_id:
+        user_id = request.query_params.get("user_id")
+    if not project_id:
+        project_id = request.query_params.get("project_id")
+    
+    # For internal calls (e.g. from connect.py), we might not have an auth header
+    # In that case, just use the project_id to find the owner
+    if not user_id and project_id:
+        try:
+            # Query project_to_user table to find the owner
+            project_owner_query = supabase.table("project_to_user").select("user_id").eq(
+                "project_id", project_id).execute()
+            
+            if project_owner_query.data:
+                user_id = project_owner_query.data[0]["user_id"]
+                logging.info(f"Found project owner: {user_id}")
+        except Exception as e:
+            logging.error(f"Error finding project owner: {str(e)}")
+    
+    # For testing, fall back to hardcoded values if all else fails
+    if not user_id:
+        user_id = "hardcoded_user_id"
+    if not project_id:
+        project_id = "hardcoded_project_id"
     
     # Get required parameters
     property_id = request.query_params.get("property_id")
@@ -426,3 +465,203 @@ async def test_credentials():
             "status": "error",
             "message": f"Error testing credentials: {str(e)}"
         }
+
+# Internal function for fetching metrics without request object
+async def get_analytics_data_internal(user_id: str, project_id: str, property_id: str, days: int = 7):
+    """
+    Internal version of get_all_analytics_data that doesn't rely on FastAPI request object.
+    This can be called directly from other functions.
+    """
+    logging.info(f"Fetching analytics data internally for user {user_id}, project {project_id}, property {property_id}")
+    
+    try:
+        # Get credentials
+        credentials = await get_valid_credentials(user_id, project_id)
+        if not credentials:
+            return {
+                "status": "error", 
+                "message": "No Google Analytics connection found"
+            }
+        
+        # Build the Analytics Data API service
+        analytics_data = build('analyticsdata', 'v1beta', credentials=credentials)
+        
+        # Get property information to include display name
+        try:
+            analytics_admin = build('analyticsadmin', 'v1beta', credentials=credentials)
+            account_summaries = analytics_admin.accountSummaries().list().execute()
+            
+            # Find the matching property
+            property_display_name = "Unknown Property"
+            account_name = "Unknown Account"
+            
+            for account in account_summaries.get('accountSummaries', []):
+                for prop in account.get('propertySummaries', []):
+                    if prop.get("property", "").split('/')[-1] == property_id:
+                        property_display_name = prop.get("displayName", "Unnamed Property")
+                        account_name = account.get("displayName", "Unknown Account")
+                        break
+            
+            logging.info(f"Found property: {property_display_name} in account: {account_name}")
+        except Exception as prop_err:
+            logging.error(f"Error getting property info: {str(prop_err)}")
+            property_display_name = "Unknown Property"
+            account_name = "Unknown Account"
+        
+        # Get some basic metrics
+        basic_metrics = [
+            {"name": "activeUsers"}, 
+            {"name": "newUsers"}, 
+            {"name": "sessions"},
+            {"name": "screenPageViews"}
+        ]
+        
+        # Calculate date range
+        end_date = datetime.now() - timedelta(days=2)  # get latest full data 2 days ago
+        start_date = end_date - timedelta(days=days-1) if days > 1 else end_date
+        
+        logging.info(f"Collecting data from {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
+        
+        # Run the report
+        report = analytics_data.properties().runReport(
+            property=f"properties/{property_id}",
+            body={
+                "dateRanges": [
+                    {"startDate": start_date.strftime("%Y-%m-%d"), "endDate": end_date.strftime("%Y-%m-%d")}
+                ],
+                "dimensions": [{"name": "date"}],
+                "metrics": basic_metrics
+            }
+        ).execute()
+        
+        # Log the response for debugging
+        logging.info(f"Got report data with {len(report.get('rows', []))} rows")
+        
+        # Store metrics in the database
+        metrics_stored = 0
+        for row in report.get('rows', []):
+            date_value = row['dimensionValues'][0]['value']  # Get the date
+            # Format date if it's in YYYYMMDD format
+            if len(date_value) == 8:
+                date_value = f"{date_value[0:4]}-{date_value[4:6]}-{date_value[6:8]}"
+            
+            # Get metric values
+            active_users = int(row['metricValues'][0]['value'])
+            new_users = int(row['metricValues'][1]['value'])
+            sessions = int(row['metricValues'][2]['value'])
+            page_views = int(row['metricValues'][3]['value'])
+            
+            # Store in database
+            try:
+                # First check if metrics already exist for this date and property
+                existing = supabase.table("google_analytics_metrics").select("*").eq(
+                    "property_id", property_id).eq("date", date_value).eq("project_id", project_id).execute()
+                
+                if existing.data:
+                    # Update existing record
+                    supabase.table("google_analytics_metrics").update({
+                        "active_users": active_users,
+                        "new_users": new_users,
+                        "sessions": sessions,
+                        "page_views": page_views,
+                        "updated_at": datetime.now(timezone.utc).isoformat()
+                    }).eq("property_id", property_id).eq("date", date_value).eq("project_id", project_id).execute()
+                else:
+                    # Insert new record
+                    supabase.table("google_analytics_metrics").insert({
+                        "project_id": project_id,
+                        "property_id": property_id,
+                        "date": date_value,
+                        "active_users": active_users,
+                        "new_users": new_users,
+                        "sessions": sessions,
+                        "page_views": page_views,
+                        "created_at": datetime.now(timezone.utc).isoformat(),
+                        "updated_at": datetime.now(timezone.utc).isoformat()
+                    }).execute()
+                
+                metrics_stored += 1
+                logging.info(f"Stored metrics for date {date_value}")
+            except Exception as store_err:
+                logging.error(f"Error storing metrics for date {date_value}: {str(store_err)}")
+        
+        return {
+            "status": "success",
+            "message": f"Synced {metrics_stored} days of metrics",
+            "property_info": {
+                "display_name": property_display_name,
+                "account_name": account_name,
+                "property_id": property_id
+            },
+            "date_range": {
+                "start": start_date.strftime("%Y-%m-%d"),
+                "end": end_date.strftime("%Y-%m-%d")
+            },
+            "metrics_stored": metrics_stored
+        }
+        
+    except Exception as e:
+        logging.error(f"Error syncing analytics data internally: {str(e)}")
+        import traceback
+        logging.error(traceback.format_exc())
+        return {"status": "error", "message": str(e)}
+
+@router.get("/fetch-initial-metrics")
+async def fetch_initial_metrics(request: FastAPIRequest):
+    """
+    Endpoint to fetch initial metrics for all properties accessible to the user.
+    This is intended to be called once after a user connects their Google Analytics account.
+    """
+    auth_header = request.headers.get('Authorization')
+    user_id = None
+    project_id = None
+    
+    if auth_header and auth_header.startswith('Bearer '):
+        try:
+            # Extract JWT token and verify
+            jwt_token = auth_header.split(' ')[1]
+            payload = verify_token(jwt_token)
+            user_id = payload.get("sub")
+            logging.info(f"Authenticated user: {user_id}")
+            
+            # Get project_id from query parameters
+            project_id = request.query_params.get("project_id")
+        except Exception as auth_err:
+            logging.error(f"Auth error: {str(auth_err)}")
+            return JSONResponse({"status": "error", "message": "Unauthorized"}, status_code=401)
+    else:
+        return JSONResponse({"status": "error", "message": "Unauthorized"}, status_code=401)
+    
+    try:
+        # Get valid credentials - use await directly
+        credentials = await get_valid_credentials(user_id, project_id)
+        
+        if credentials:
+            # Get property information from Google Analytics
+            analytics_admin = build('analyticsadmin', 'v1beta', credentials=credentials)
+            account_summaries = analytics_admin.accountSummaries().list().execute()
+            
+            # For each property, fetch metrics
+            for account in account_summaries.get('accountSummaries', []):
+                for prop in account.get('propertySummaries', []):
+                    property_id = prop.get("property", "").split('/')[-1]
+                    
+                    logging.info(f"Fetching initial metrics for property: {property_id}")
+                    
+                    # Call internal version that doesn't need request headers
+                    fetch_result = await get_analytics_data_internal(
+                        user_id=user_id,
+                        project_id=project_id,
+                        property_id=property_id,
+                        days=7
+                    )
+                    logging.info(f"Initial metrics fetch complete: {fetch_result.get('message', 'No message')}")
+            
+            logging.info("All initial metrics fetched successfully")
+            return JSONResponse({"status": "success", "message": "Initial metrics fetch complete"})
+        else:
+            logging.warning("Could not get valid credentials for initial metrics fetch")
+            return JSONResponse({"status": "error", "message": "Invalid credentials"}, status_code=401)
+    except Exception as e:
+        logging.error(f"Error fetching initial metrics: {str(e)}")
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
