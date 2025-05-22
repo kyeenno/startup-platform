@@ -4,8 +4,6 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
-import AcceptPopup from "../projects/messages/AcceptPopup";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 export default function ProfileOverview() {

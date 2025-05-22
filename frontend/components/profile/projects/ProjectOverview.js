@@ -76,12 +76,12 @@ export default function ProjectOverview() {
   }
 
   return (
-    <div className="container flex flex-col items-start mx-auto py-10 max-w-5xl text-gray-900">
+    <div className="container flex flex-col items-center mx-auto py-10 max-w-5xl text-gray-900">
       <div className="text-[#111827] px-4 py-2 m-4">
-        <h1 className="text-3xl font-bold mb-6 text-[#111827]">
+        <h1 className="text-3xl text-center font-bold mb-6 text-[#111827]">
           {project.project_name}
         </h1>
-        <div className="container mx-auto max-w-5xl text-white">
+        <div>
           <InvitePopup projectId={projectId} userId={user?.id} />
           <ConnectSources />
         </div>
