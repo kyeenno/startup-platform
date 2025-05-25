@@ -23,7 +23,6 @@ export default function AcceptPopup() {
                 setLoading(true);
 
                 const { data: { user: authUser } } = await supabase.auth.getUser();
-                console.log('Current user email:', authUser.email);
 
                 const { data, error } = await supabase
                     .from('project_invitations')
@@ -39,7 +38,6 @@ export default function AcceptPopup() {
 
                 if (error) throw error;
 
-                console.log('Full data:', data || []);
                 setInvitations(data || []);
 
             } catch (error) {

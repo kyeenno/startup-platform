@@ -41,7 +41,6 @@ export default function NewProject() {
                 .single();
 
             if (creatingError) throw creatingError;
-            console.log('Project:', data);
 
             const { error: relationError } = await supabase
                 .from('project_to_user')

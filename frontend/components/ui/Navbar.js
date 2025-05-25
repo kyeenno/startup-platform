@@ -19,7 +19,6 @@ export default function Navbar() {
             if (user && user.id) {
                 try {
                     setProjectsLoading(true);
-                    console.log("user:", user.id);
 
                     const { data, error } = await supabase
                         .from('project_to_user')
@@ -33,12 +32,9 @@ export default function Navbar() {
 
                     if (error) throw error;
 
-                    console.log("Joined projects data:", data);
-
                     // Structure the data
                     const structureProjects = data.map(item => {
                         if (!item.projects) {
-                            console.log("Missing data:", item);
                             return null;
                         }
 
@@ -56,7 +52,6 @@ export default function Navbar() {
                     console.error('Error fetching prjcts:', err);
                 } finally {
                     setProjectsLoading(false);
-                    console.log("fetched");
                 }
             } else {
                 setProjects([]);

@@ -36,7 +36,6 @@ export default function ProjectOverview() {
         setError("Failed to load project data!");
       } finally {
         setLoading(false);
-        console.log("Projects fetched successfully (ProjectOverview.js)");
       }
     }
 

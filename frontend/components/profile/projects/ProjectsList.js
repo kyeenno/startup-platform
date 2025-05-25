@@ -4,12 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
 
-export default function UserData({ 
-  tableName = 'user_info',  // Default table to query
-  columns = '*',           // Default columns to select
-  title = 'User Data',     // Component title
-  renderItem              // Optional custom render function
-}) {
+export default function UserData() {
   const { user, loading: authLoading } = useAuth();
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -26,16 +21,13 @@ export default function UserData({
         setIsLoading(true);
         setError(null);
         
-        console.log(`Fetching ${tableName} data for user:`, user.id);
-        
         const { data: userData, error } = await supabase
-          .from(tableName)
-          .select(columns)
+          .from("user_info")
+          .select("*")
           .eq('user_id', user.id);
         
         if (error) throw error;
         
-        console.log(`Retrieved ${userData?.length || 0} rows from ${tableName}`);
         setData(userData);
         
       } catch (err) {
@@ -47,7 +39,7 @@ export default function UserData({
     }
 
     fetchUserData();
-  }, [user, tableName, columns]);
+  }, [user]);
 
   // Default renderer for the data
   const defaultRenderer = (item, index) => {

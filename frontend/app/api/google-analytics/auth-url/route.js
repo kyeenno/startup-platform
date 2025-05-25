@@ -4,7 +4,6 @@ import { cookies } from 'next/headers';
 
 export async function GET(request) {
   try {
-    console.log("Google Analytics auth URL endpoint hit");
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('project_id');
 
@@ -24,7 +23,6 @@ export async function GET(request) {
     // Call your backend service for Google Analytics
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
     const endpoint = `${backendUrl}/google/auth-url?project_id=${projectId}`;
-    console.log('Backend endpoint:', endpoint);
 
     try {
       const response = await fetch(endpoint, {
