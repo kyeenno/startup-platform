@@ -84,9 +84,6 @@ export default function ConnectSources() {
             setUpdating(true);
             setError(null);
 
-            console.log("Connecting Google Analytics for project:", projectId);
-            console.log("Session token:", session?.access_token ? "Present" : "Missing");
-
             // Add projectId to the request URL
             const response = await fetch(`/api/google/auth-url?project_id=${projectId}`, {
                 headers: {
@@ -95,10 +92,7 @@ export default function ConnectSources() {
                 }
             });
 
-            console.log("Response status:", response.status);
-            
             const data = await response.json();
-            console.log("Response data:", data);
 
             if (!response.ok) {
                 throw new Error(data.message || 'Failed to get Google Auth URL');
@@ -106,7 +100,6 @@ export default function ConnectSources() {
 
             // Redirect to Google OAuth page
             if (data.auth_url) {
-                console.log("Redirecting to Google OAuth:", data.auth_url);
                 window.location.href = data.auth_url;
             } else {
                 throw new Error('No auth URL returned');
@@ -127,9 +120,6 @@ export default function ConnectSources() {
             setUpdating(true);
             setError(null);
 
-            console.log("Connecting Stripe for project:", projectId);
-            console.log("Session token:", session?.access_token ? "Present" : "Missing");
-
             // Call your backend to get Stripe Auth URL
             const response = await fetch(`/api/stripe/auth-url?project_id=${projectId}`, {
                 headers: {
@@ -138,10 +128,7 @@ export default function ConnectSources() {
                 }
             });
 
-            console.log("Stripe auth response status:", response.status);
-            
             const data = await response.json();
-            console.log("Stripe auth response data:", data);
 
             if (!response.ok) {
                 throw new Error(data.message || 'Failed to get Stripe Auth URL');
@@ -149,7 +136,6 @@ export default function ConnectSources() {
 
             // Redirect to Stripe OAuth page
             if (data.auth_url) {
-                console.log("Redirecting to Stripe OAuth:", data.auth_url);
                 window.location.href = data.auth_url;
             } else {
                 throw new Error('No auth URL returned');
@@ -202,7 +188,7 @@ export default function ConnectSources() {
                             <Image
                                 width={150}
                                 height={0}
-                                src="/ga-icon-white.png"
+                                src="/ga-icon.png"
                                 alt="Google Analytics logo"
                             />
                         </div>
