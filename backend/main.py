@@ -68,6 +68,26 @@ async def get_summary(user_id: str = Depends(get_current_user_id)): # function t
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")    
 
+# Retrieving project data for the user
+@app.get("/api/projects")
+async def get_summary(user_id: str = Depends(get_current_user_id)): # function that handles request
+    try:
+        # Data retrieving
+        query = supabase.table("projects") \
+            .select("project_id, project_name") \
+            .eq("user_id", user_id)
+        response = query.execute()
+
+        project_list = response.data
+        if not project_list or len(project_list) == 0:
+            raise HTTPException(status_code=404, detail="No projects found")
+
+        # Return to frontend
+        return JSONResponse(content=project_list)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
+    
 # Notification preference retrieval if user has one already
 @app.get("/api/notification-preferences")
 async def get_notification_preferences(user_id: str = Depends(get_current_user_id)):
@@ -121,6 +141,8 @@ async def update_notification_preferences(
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
+
+
 
 #mount google analytics routes under /google
 app.include_router(ga_router, prefix="/google")
