@@ -1,4 +1,4 @@
-from fastapi import Request, HTTPException, FastAPI, Depends
+from fastapi import Request, HTTPException, FastAPI, Depends, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from auth import verify_token # function from auth.py
 from supabase import create_client
@@ -48,37 +48,59 @@ async def get_current_user_id(request: Request):
         raise HTTPException(status_code=401, detail="Invalid token")
     return user_id
 
-# Data access route after user login
-@app.get("/api/summary")
-async def get_summary(user_id: str = Depends(get_current_user_id)): # function that handles request
+class ProjectRequest(BaseModel):
+    project_id: str
+
+@app.post("/api/summary")
+async def get_summary(
+    request: ProjectRequest,
+    user_id: str = Depends(get_current_user_id)  # function that handles request
+):
+    project_id = request.project_id
     try:
-        # Data retrieving
-        query = supabase.table("ga_data") \
+        # Check if user has access to the project
+        access_check = supabase.table("project_to_user")\
+            .select("id")\
+            .eq("user_id", user_id)\
+            .eq("project_id", project_id)\
+            .limit(1)\
+            .execute()
+
+        if not access_check.data:
+            raise HTTPException(status_code=403, detail="You do not have access to this project.")
+        
+        response = supabase.table("ga_data") \
             .select("name, value, date_collected") \
-            .eq("user_id", user_id)
-        response = query.execute()
+            .eq("project_id", project_id) \
+            .execute()
+        
+        if not response.data:
+            raise HTTPException(status_code=404, detail="No data found for this project.")
 
-        data_list = response.data
-        if not data_list or len(data_list) == 0:
-            raise HTTPException(status_code=404, detail="Message not found")
+        return JSONResponse(content=response.data)
 
-        # Return to frontend
-        return JSONResponse(content=data_list)
-
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")    
+        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 # Retrieving project data for the user
 @app.get("/api/projects")
 async def get_summary(user_id: str = Depends(get_current_user_id)): # function that handles request
     try:
         # Data retrieving
-        query = supabase.table("projects") \
-            .select("project_id, project_name") \
+        query = supabase.table("project_to_user") \
+            .select("project_id, projects(project_name)") \
             .eq("user_id", user_id)
         response = query.execute()
 
+        # Debugging: Print the full Supabase response and the project list
+        print("Supabase raw response:", response)
+        print("Supabase response data:", response.data)
+
         project_list = response.data
+        print("Final project_list to return:", project_list)
+
         if not project_list or len(project_list) == 0:
             raise HTTPException(status_code=404, detail="No projects found")
 
