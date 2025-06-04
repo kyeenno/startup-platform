@@ -84,14 +84,7 @@ def refresh_access_token(refresh_token: str) -> dict:
     except Exception as e:
         logging.error(f"Token refresh failed: {str(e)}")
         raise
-
-# not needed if JWT tokens for authentification is used
-# def get_userid_and_projectid_from_frontend():
-#     # Simulate fetching user_id and project_id from a frontend table or API
-#     # Replace this with actual logic when the frontend is ready
-#     return {"user_id": "example_user_id", "project_id": "example_project_id"}
-
-
+    
 #create oauth flow
 def create_oauth_flow():
     logging.info("Creating OAuth flow")
@@ -113,17 +106,43 @@ def create_oauth_flow():
 
 #1: step 1: Send user to Google login page
 @router.get("/auth-url")
-def get_auth_url():
+def get_auth_url(request: FastAPIRequest):
+    # JWT token verification (add this)
+    auth_header = request.headers.get('Authorization')
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return JSONResponse({"status": "error", "message": "Unauthorized"}, status_code=401)
+    
+    jwt_token = auth_header.split(' ')[1]
+    
+    try:
+        payload = verify_token(jwt_token)
+        user_id = payload.get("sub")
+    except ValueError as e:
+        return JSONResponse({"status": "error", "message": f"Token verification failed: {str(e)}"}, status_code=401)
+    
+    project_id = request.query_params.get("project_id")
+    if not project_id:
+        return JSONResponse({"status": "error", "message": "Missing project_id"}, status_code=400)
+    
+    # Store session for callback (add this)
+    from main import store_oauth_session
+    state_token = store_oauth_session(user_id, project_id)
+    
     logging.info("Generating Google OAuth URL")
     flow = create_oauth_flow()
     flow.redirect_uri = REDIRECT_URI
-    auth_url, _ = flow.authorization_url(prompt="consent", access_type="offline", include_granted_scopes="true")
-    logging.info(f"Generated auth URL: {auth_url[:50]}...")  # Log only first 50 chars for security
+    auth_url, _ = flow.authorization_url(
+        prompt="consent", 
+        access_type="offline", 
+        include_granted_scopes="true",
+        state=state_token  # Add this line
+    )
+    logging.info(f"Generated auth URL: {auth_url[:50]}...")
     return {"auth_url": auth_url}
 
 #2: step 2: callback endpoint, get token
 @router.get("/callback")
-def google_callback(request: FastAPIRequest):
+async def google_callback(request: FastAPIRequest):
 
     #get auth code from Google callback and verify
     logging.info("Received callback from Google OAuth")
@@ -133,50 +152,32 @@ def google_callback(request: FastAPIRequest):
         return JSONResponse({"status": "error", "message": "Missing authorization code"}, status_code=400)
 
     # TEMPORARY MODE: Use hardcoded values for testing
-    user_id = "hardcoded_user_id"  # Temporary for testing
-    project_id = "hardcoded_project_id"  # Temporary for testing
-    supabase_authed = supabase # Temporary for testing
+    #user_id = "hardcoded_user_id"  # Temporary for testing
+    #project_id = "hardcoded_project_id"  # Temporary for testing
+    #supabase_authed = supabase # Temporary for testing
 
-    # JWT MODE (commented out until frontend is ready)
-    """
-    auth_header = request.headers.get('Authorization')
-    if not auth_header or not auth_header.startswith('Bearer '):
-        logging.error("Missing or invalid authorization header")
-        return JSONResponse(
-            {"status": "error", "message": "Unauthorized"}, 
-            status_code=401
-        )
 
-    # Extract JWT token
-    jwt_token = auth_header.split(' ')[1]
-
-    try:
-        #verify token and get user_id
-        payload = verify_token(jwt_token)
-        user_id = payload.get("sub")
-        logging.info(f"Authenticated user: {user_id}")
-
-        #get project_id from query parameters
-        project_id = request.query_params.get("project_id")
-        if not project_id:
-            logging.error("Missing project_id parameter")
-            return JSONResponse({"status": "error", "message": "Missing project_id"}, status_code=400)
-
-        # Create authenticated Supabase client with JWT token
-        supabase_authed = create_client(
-            SUPABASE_URL,
-            SUPABASE_SERVICE_ROLE_KEY,
-            options={
-                'headers': {
-                    'Authorization': f'Bearer {jwt_token}'
-                }
-            }
-        )
-
-    except ValueError as e:
-        logging.error(f"JWT verification failed: {str(e)}")
-        return JSONResponse({"status": "error", "message": "Invalid authentication token"}, status_code=401)
-    """
+    # SESSION MODE
+    state = request.query_params.get("state")
+    if not state:
+        logging.error("Missing state parameter")
+        return JSONResponse({"status": "error", "message": "Missing state parameter"}, status_code=400)
+    
+    # Get session data instead of requiring JWT
+    from main import get_oauth_session
+    session_data = get_oauth_session(state)
+    
+    if not session_data:
+        logging.error("Invalid or expired OAuth session")
+        return JSONResponse({"status": "error", "message": "Invalid or expired session"}, status_code=401)
+    
+    user_id = session_data['user_id']
+    project_id = session_data['project_id']
+    logging.info(f"Processing OAuth callback for user: {user_id}, project: {project_id}")
+    
+    # Use service role key (no JWT needed)
+    supabase_authed = supabase
+    #SESSION MODE END
     
     if not user_id or not project_id:
         logging.error("Invalid user_id or project_id")
@@ -246,14 +247,51 @@ def google_callback(request: FastAPIRequest):
             return JSONResponse({"status": "error", "message": "Failed to save credentials to database"}, status_code=500)
         
         logging.info("Credentials saved to Supabase successfully")
-
+    
     except Exception as e:
         logging.error(f"Database operation failed: {str(e)}")
         return JSONResponse({"status": "error", "message": f"Database operation failed: {str(e)}"}, status_code=500)
 
-    logging.info("Google account connected successfully")
-    return JSONResponse({"status": "success", "message": "Google account connected successfully"}, status_code=200)
+    # Update projects table to mark Google Analytics as connected
+    try:
+        logging.info("Updating projects table to mark Google Analytics as connected")
+        project_update = supabase_authed.table("projects").update({
+            "google_analytics": True
+        }).eq("project_id", project_id).execute()
+        
+        if not project_update.data:
+            logging.warning("Failed to update projects table, but credentials saved successfully")
+        else:
+            logging.info("Projects table updated successfully")
+            
+    except Exception as e:
+        logging.error(f"Failed to update projects table: {str(e)}")
+        # Don't fail the whole process - credentials are already saved
 
+    #AUTOMATIC DATA DOWNLOAD:
+    
+    try:
+        logging.info("Triggering background Google Analytics data fetch")
+        
+        # Import background task function
+        import asyncio
+        from google_analytics.fetch_metrics import background_data_fetch
+        
+        # Trigger background task (non-blocking)
+        asyncio.create_task(background_data_fetch(user_id, project_id))
+        
+        logging.info("Background GA data fetch triggered successfully")
+        
+    except Exception as e:
+        logging.error(f"Error triggering background GA data fetch: {str(e)}")
+        # Don't fail the connection
+
+    from fastapi.responses import RedirectResponse
+    logging.info("Google account connected successfully")
+    return RedirectResponse(
+        url=f"http://localhost:3000/profile/projects/{project_id}?ga_connected=true",
+        status_code=302
+    )
 
 #3: step 3: automatically refresh token
 @router.get("/refresh-token/{user_id}/{project_id}")

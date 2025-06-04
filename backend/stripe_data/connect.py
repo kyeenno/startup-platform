@@ -66,34 +66,27 @@ async def verify_project_access(user_id: str, project_id: str) -> bool:
 #SECTION 1: create Auth URL endpoint
 @router.get("/auth-url")
 async def get_auth_url(request: FastAPIRequest):
-    # For testing, use hardcoded values
-    user_id = "hardcoded_user_id"
-    project_id = "hardcoded_project_id"
-    
-    """
-    # Get project_id from query parameters
-    project_id = request.query_params.get("project_id")
-    if not project_id:
-        return JSONResponse({"status": "error", "message": "Missing project_id"}, status_code=400)
-    
-    # Extract JWT token from Authorization header
+    # JWT token verification:
     auth_header = request.headers.get('Authorization')
     if not auth_header or not auth_header.startswith('Bearer '):
         return JSONResponse({"status": "error", "message": "Unauthorized"}, status_code=401)
     
     jwt_token = auth_header.split(' ')[1]
     
+    # Add try-catch for JWT verification
     try:
-        # Verify token and get user_id
         payload = verify_token(jwt_token)
         user_id = payload.get("sub")
-        
-        # Verify project access
-        has_access = await verify_project_access(user_id, project_id)
-        if not has_access:
-            return JSONResponse({"status": "error", "message": "No access to this project"}, status_code=403)
-    """
-        
+    except ValueError as e:
+        return JSONResponse({"status": "error", "message": f"Token verification failed: {str(e)}"}, status_code=401)
+    except Exception as e:
+        return JSONResponse({"status": "error", "message": f"Authentication error: {str(e)}"}, status_code=401)
+    
+    project_id = request.query_params.get("project_id")
+    
+    if not project_id:
+        return JSONResponse({"status": "error", "message": "project_id parameter required"}, status_code=400)
+     
     try:
         # Generate state parameter with user_id and project_id for security
         state = jwt.encode(
@@ -267,13 +260,49 @@ async def stripe_callback(request: FastAPIRequest):
             logging.error(f"Error storing Stripe account details: {str(acc_err)}")
             # Continue anyway, we have the essential connection data
 
+        # Update projects table to mark Stripe as connected
+        try:
+            logging.info("Updating projects table to mark Stripe as connected")
+            project_update = supabase.table("projects").update({
+                "stripe": True
+            }).eq("project_id", project_id).execute()
+            
+            if not project_update.data:
+                logging.warning("Failed to update projects table, but credentials saved successfully")
+            else:
+                logging.info("Projects table updated successfully")
+                
+        except Exception as e:
+            logging.error(f"Failed to update projects table: {str(e)}")
+            # Don't fail the whole process - credentials are already saved
+
         # Return success response with more information
-        return JSONResponse({
-            "status": "success", 
-            "message": "Stripe account connected successfully",
-            "account_id": stripe_user_id[:5] + "...",  # Only show part of the ID for security
-            "account_name": account_name
-        })
+        from fastapi.responses import RedirectResponse
+        logging.info("Stripe account connected successfully")
+        response = RedirectResponse(
+            url=f"http://localhost:3000/profile/projects/{project_id}?stripe_connected=true",
+            status_code=302
+        )
+        
+        #AUTO data download:
+
+        try:
+            logging.info("Triggering background Stripe data fetch")
+            
+            # Import background task function
+            import asyncio
+            from stripe_data.fetch_metrics import background_stripe_fetch
+            
+            # Trigger background task (non-blocking)
+            asyncio.create_task(background_stripe_fetch(user_id, project_id))
+            
+            logging.info("Background Stripe data fetch triggered successfully")
+            
+        except Exception as e:
+            logging.error(f"Error triggering background Stripe data fetch: {str(e)}")
+            # Don't fail the connection
+        
+        return response
         
     except jwt.InvalidTokenError as e:
         logging.error(f"Invalid state token: {str(e)}")

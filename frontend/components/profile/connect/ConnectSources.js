@@ -49,6 +49,75 @@ export default function ConnectSources() {
         fetchConnections();
     }, [projectId, user]);
 
+    const handleGoogleAnalyticsConnect = async () => {
+        if (!user || !projectId || updating) return;
+        
+        setUpdating(true);
+        try {
+            // Get session token
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) throw new Error('Not authenticated');
+    
+            // Call backend directly to get auth URL
+            const response = await fetch(`http://localhost:8000/google/auth-url?project_id=${projectId}`, {
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+    
+            const data = await response.json();
+            
+            if (data.auth_url) {
+                // Redirect to Google OAuth
+                window.location.href = data.auth_url;
+            } else {
+                throw new Error(data.message || 'Failed to get auth URL');
+            }
+        } catch (error) {
+            console.error('Error connecting Google Analytics:', error);
+            setError('Failed to connect Google Analytics');
+        } finally {
+            setUpdating(false);
+        }
+    };
+    
+    const handleStripeConnect = async () => {
+        if (!user || !projectId || updating) return;
+        
+        setUpdating(true);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) throw new Error('Not authenticated');
+    
+            console.log('Making Stripe request...');
+            
+            const response = await fetch(`http://localhost:8000/stripe/auth-url?project_id=${projectId}`, {
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+    
+            console.log('Stripe response status:', response.status);
+            console.log('Stripe response ok:', response.ok);
+            
+            const data = await response.json();
+            console.log('Stripe response data:', data);
+            
+            if (data.auth_url) {
+                window.location.href = data.auth_url;
+            } else {
+                throw new Error(data.message || 'Failed to get auth URL');
+            }
+        } catch (error) {
+            console.error('Error connecting Stripe:', error);
+            setError('Failed to connect Stripe');
+        } finally {
+            setUpdating(false);
+        }
+    };
+
     if (authLoading || loading) {
         return (
             <div className="p-6 max-w-2xl mx-auto">
@@ -83,16 +152,24 @@ export default function ConnectSources() {
                                 alt="Google Analytics logo"
                             />
                         </div>
+                        
+                        {/* Add this connection status display */}
+                        {sources.google_analytics && (
+                            <div className="mb-4 p-2 bg-green-100 text-green-700 rounded text-center text-sm">
+                                ✅ Connected successfully
+                            </div>
+                        )}
                     </div>
 
                     <button
+                        onClick={handleGoogleAnalyticsConnect}
                         disabled={updating}
                         className={`mt-auto w-full px-4 py-2 rounded font-medium ${updating
                             ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                             : 'bg-blue-600 hover:bg-blue-700 text-white'
                         } transition-colors`}
                     >
-                        {updating ? 'Updating...' : sources.google_analytics ? 'Reconnect' : 'Connect'}
+                        {updating ? 'Connecting...' : sources.google_analytics ? 'Reconnect' : 'Connect'}
                     </button>
                 </div>
 
@@ -107,16 +184,24 @@ export default function ConnectSources() {
                                 alt="Stripe logo"
                             />
                         </div>
+                        
+                        {/* Add this connection status display */}
+                        {sources.stripe && (
+                            <div className="mb-4 p-2 bg-green-100 text-green-700 rounded text-center text-sm">
+                                ✅ Connected successfully
+                            </div>
+                        )}
                     </div>
 
                     <button
+                        onClick={handleStripeConnect}
                         disabled={updating}
                         className={`mt-auto w-full px-4 py-2 rounded font-medium ${updating
                             ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                             : 'bg-blue-600 hover:bg-blue-700 text-white'
                         } transition-colors`}
                     >
-                        {updating ? 'Updating...' : sources.stripe ? 'Reconnect' : 'Connect'}
+                        {updating ? 'Connecting...' : sources.stripe ? 'Reconnect' : 'Connect'}
                     </button>
                 </div>
             </div>

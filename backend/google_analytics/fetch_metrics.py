@@ -2,11 +2,12 @@ from fastapi import APIRouter, Request as FastAPIRequest
 from fastapi.responses import JSONResponse
 import logging
 import os
+import asyncio
 from dotenv import load_dotenv
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from auth import verify_token
 
 # Import from connect.py for credential management
@@ -85,32 +86,24 @@ def filter_compatible_metrics(metrics, dimensions):
 # the user has access to
 @router.get("/properties")
 async def list_properties(request: FastAPIRequest):
-
-    # For testing, use hardcoded values
-    user_id = "hardcoded_user_id"
-    project_id = "hardcoded_project_id"
-    
-    """
-    # Get JWT token from header
+    #JWT token verification:
     auth_header = request.headers.get('Authorization')
     if not auth_header or not auth_header.startswith('Bearer '):
         return JSONResponse({"status": "error", "message": "Unauthorized"}, status_code=401)
     
     jwt_token = auth_header.split(' ')[1]
     
+    # Add try-catch for JWT verification
     try:
-        # Verify token and get user ID
         payload = verify_token(jwt_token)
         user_id = payload.get("sub")
-        
-        # Get project_id from query parameters
-        project_id = request.query_params.get("project_id")
-        if not project_id:
-            return JSONResponse({"status": "error", "message": "Missing project_id"}, status_code=400)
     except ValueError as e:
-        logging.error(f"JWT verification failed: {str(e)}")
-        return JSONResponse({"status": "error", "message": "Invalid token"}, status_code=401)
-    """
+        return JSONResponse({"status": "error", "message": f"Token verification failed: {str(e)}"}, status_code=401)
+    except Exception as e:
+        return JSONResponse({"status": "error", "message": f"Authentication error: {str(e)}"}, status_code=401)
+    
+    project_id = request.query_params.get("project_id")
+    #JWT END
     
     try:
         #get credentials
@@ -150,11 +143,24 @@ async def list_properties(request: FastAPIRequest):
 
 #3: Endpoint to fetch analytics metrics and store them by date
 @router.get("/data")
-async def get_all_analytics_data(request: FastAPIRequest):
+async def get_analytics_data(request: FastAPIRequest):
+    #JWT token verification:
+    auth_header = request.headers.get('Authorization')
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return JSONResponse({"status": "error", "message": "Unauthorized"}, status_code=401)
+
+    jwt_token = auth_header.split(' ')[1]
     
-    # For testing, use hardcoded values
-    user_id = "hardcoded_user_id"
-    project_id = "hardcoded_project_id"
+    # Add try-catch for JWT verification
+    try:
+        payload = verify_token(jwt_token)
+        user_id = payload.get("sub")
+    except ValueError as e:
+        return JSONResponse({"status": "error", "message": f"Token verification failed: {str(e)}"}, status_code=401)
+    except Exception as e:
+        return JSONResponse({"status": "error", "message": f"Authentication error: {str(e)}"}, status_code=401)
+    
+    project_id = request.query_params.get("project_id")
     
     # Get required parameters
     property_id = request.query_params.get("property_id")
@@ -397,12 +403,26 @@ async def test():
     return {"message": "Analytics API is working"}
 
 @router.get("/test-credentials")
-async def test_credentials():
-    """Test credentials retrieval"""
-    # Use the hardcoded values that match what you stored in connect.py
-    user_id = "hardcoded_user_id"  
-    project_id = "hardcoded_project_id"
+async def test_credentials(request: FastAPIRequest):
+    #JWT token verification:
+    auth_header = request.headers.get('Authorization')
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return JSONResponse({"status": "error", "message": "Unauthorized"}, status_code=401)
     
+    jwt_token = auth_header.split(' ')[1]
+    
+    # Add try-catch for JWT verification
+    try:
+        payload = verify_token(jwt_token)
+        user_id = payload.get("sub")
+    except ValueError as e:
+        return JSONResponse({"status": "error", "message": f"Token verification failed: {str(e)}"}, status_code=401)
+    except Exception as e:
+        return JSONResponse({"status": "error", "message": f"Authentication error: {str(e)}"}, status_code=401)
+    
+    project_id = request.query_params.get("project_id")
+    #JWT END
+
     try:
         credentials = await get_valid_credentials(user_id, project_id)
         
@@ -426,3 +446,170 @@ async def test_credentials():
             "status": "error",
             "message": f"Error testing credentials: {str(e)}"
         }
+
+async def background_data_fetch(user_id: str, project_id: str):
+    """Complete background data fetch with all required fields"""
+    try:
+        logging.info(f"Starting background GA data fetch for user {user_id}, project {project_id}")
+        
+        await asyncio.sleep(2)
+        
+        # Get credentials
+        credentials = await get_valid_credentials(user_id, project_id)
+        if not credentials:
+            logging.error("No valid credentials found for background fetch")
+            return
+        
+        # Build services
+        analytics_admin = build('analyticsadmin', 'v1beta', credentials=credentials)
+        analytics_data = build('analyticsdata', 'v1beta', credentials=credentials)
+        
+        # Get properties and account info
+        account_summaries = analytics_admin.accountSummaries().list().execute()
+        
+        property_id = None
+        property_display_name = "Unknown Property"
+        account_name = "Unknown Account"
+        
+        for account in account_summaries.get('accountSummaries', []):
+            for prop in account.get('propertySummaries', []):
+                property_id = prop.get("property", "").split('/')[-1]
+                property_display_name = prop.get("displayName", "Unnamed Property")
+                account_name = account.get("displayName", "Unknown Account")
+                break
+            if property_id:
+                break
+        
+        if not property_id:
+            logging.warning("No properties found for background data fetch")
+            return
+        
+        logging.info(f"Found property: {property_display_name} in account: {account_name}")
+        
+        # Get metadata with descriptions
+        metadata = analytics_data.properties().getMetadata(
+            name=f"properties/{property_id}/metadata"
+        ).execute()
+        
+        # Create descriptions lookup
+        metric_descriptions = {}
+        for metric in metadata.get("metrics", []):
+            api_name = metric.get("apiName")
+            description = metric.get("description", "No description available")
+            metric_descriptions[api_name] = description
+        
+        all_metrics = [{"name": metric["apiName"]} for metric in metadata.get("metrics", [])]
+        
+        # Calculate date (2 days ago)
+        target_date = datetime.now() - timedelta(days=2)
+        target_date_str = target_date.strftime("%Y-%m-%d")
+        
+        # Format date for GA API (YYYYMMDD)
+        formatted_date = target_date.strftime("%Y%m%d")
+        
+        metrics_stored = 0
+        
+        # Process ALL metrics, not just 10
+        for i, metric in enumerate(all_metrics):
+            try:
+                metric_name = metric["name"]
+                
+                # Skip known incompatible metrics (SAME list as manual fetch)
+                incompatible_metrics = [
+                    # Cohort metrics need cohort specs
+                    "cohortActiveUsers", "cohortTotalUsers", "cohortLTV",
+                    
+                    # Ad metrics not compatible with basic dimensions
+                    "advertiserAdCostPerClick", "advertiserAdCostPerKeyEvent", 
+                    "advertiserAdClicks", "advertiserAdCost",
+                    
+                    # Item metrics with compatibility issues
+                    "itemDiscountAmount", "grossItemRevenue", "itemListViewEvents",
+                    
+                    # Return on ad spend metrics
+                    "returnOnAdSpend"
+                ]
+
+                if metric_name in incompatible_metrics:
+                    logging.info(f"Skipping known incompatible metric: {metric_name}")
+                    continue
+                
+                request_body = {
+                    "dateRanges": [{
+                        "startDate": target_date_str,
+                        "endDate": target_date_str
+                    }],
+                    "metrics": [metric],
+                    "dimensions": [{"name": "date"}],
+                    "keepEmptyRows": True
+                }
+                
+                # Make API request with timeout handling
+                response = analytics_data.properties().runReport(
+                    property=f"properties/{property_id}",
+                    body=request_body
+                ).execute()
+                
+                # Process response
+                metric_value = 0
+                if response.get("rows"):
+                    for row in response["rows"]:
+                        if row.get("metricValues") and len(row["metricValues"]) > 0:
+                            value_str = row["metricValues"][0].get("value", "0")
+                            try:
+                                metric_value = float(value_str) if value_str else 0
+                            except ValueError:
+                                metric_value = 0
+                
+                # Create complete metric record
+                metric_record = {
+                    "user_id": user_id,
+                    "project_id": project_id,
+                    "property_id": property_id,
+                    "property_display_name": property_display_name,  # ✅ Added
+                    "account_name": account_name,                    # ✅ Added
+                    "date": target_date_str,
+                    "metric_name": metric_name,
+                    "metric_description": metric_descriptions.get(metric_name, "No description available"),  # ✅ Added
+                    "metric_value": metric_value,
+                    "last_synced_at": datetime.now().isoformat(),
+                    "first_synced_at": datetime.now().isoformat()
+                }
+                
+                # Check if metric already exists
+                existing = supabase.table("google_analytics_metrics").select("id").eq(
+                    "user_id", user_id).eq("project_id", project_id).eq(
+                    "property_id", property_id).eq("date", target_date_str).eq(
+                    "metric_name", metric_name).execute()
+                
+                if not existing.data:
+                    # Insert new metric
+                    supabase.table("google_analytics_metrics").insert(metric_record).execute()
+                    metrics_stored += 1
+                    logging.info(f"✅ Stored metric {i+1}/{len(all_metrics)}: {metric_name} = {metric_value}")
+                else:
+                    # Update existing metric
+                    supabase.table("google_analytics_metrics").update({
+                        "metric_value": metric_value,
+                        "property_display_name": property_display_name,
+                        "account_name": account_name,
+                        "metric_description": metric_descriptions.get(metric_name, "No description available"),
+                        "last_synced_at": datetime.now().isoformat()
+                    }).eq("user_id", user_id).eq("project_id", project_id).eq(
+                        "property_id", property_id).eq("date", target_date_str).eq(
+                        "metric_name", metric_name).execute()
+                    metrics_stored += 1
+                    logging.info(f"🔄 Updated metric {i+1}/{len(all_metrics)}: {metric_name} = {metric_value}")
+                
+                # Small delay to avoid API rate limits
+                if i % 10 == 0:
+                    await asyncio.sleep(0.5)
+                        
+            except Exception as metric_err:
+                logging.error(f"❌ Error processing metric {i+1} ({metric.get('name', 'unknown')}): {str(metric_err)}")
+                continue  # Continue with next metric
+        
+        logging.info(f"✅ Background GA data fetch completed: {metrics_stored} metrics stored for {property_display_name}")
+        
+    except Exception as e:
+        logging.error(f"💥 Error in background GA data fetch: {str(e)}")
